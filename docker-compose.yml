@@ -1,0 +1,36 @@
+version: '3.9'
+
+services:
+  app:
+    container_name: bukumane
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev
+
+  db:
+    container_name: bukumane-db
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: bukumane_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - '5050:5432'
+
+volumes:
+  db_data:
