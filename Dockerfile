@@ -14,8 +14,9 @@ RUN npm install
 # プロジェクト全体コピー
 COPY . .
 
-# Prisma Client を生成（important）
-# RUN npx prisma generate
+# Prisma Client を生成
+# ビルド用にダミーの環境変数をセットして実行
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 
 # Next.js をビルド
 RUN npm run build
