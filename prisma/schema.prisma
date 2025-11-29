@@ -52,6 +52,7 @@ model User {
   name          String?
   email         String?   @unique
   emailVerified DateTime? @map("email_verified")
+  image         String? 
   password      String?   // Credentials認証用
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
