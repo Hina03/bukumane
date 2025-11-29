@@ -1,13 +1,13 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-export default async function Profile() {
+export default async function Mypage() {
   const session = await getServerSession(authOptions);
   const user = session?.user;
 
   return (
     <>
-      <p>Profile Page</p>
+      <p>My Page</p>
       {!user ? (
         <p>ユーザー情報が取得できていません。。。</p>
       ) : (
