@@ -5,7 +5,7 @@ services:
     container_name: bukumane
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - '3000:3000'
     env_file:
@@ -13,12 +13,14 @@ services:
     environment:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       NODE_ENV: development
+      WATCHPACK_POLLING: true
     depends_on:
       - db
     volumes:
       - .:/app
       - /app/node_modules
-    command: npm run dev
+      - /app/.next
+    # command: npm run dev
 
   db:
     container_name: bukumane-db
