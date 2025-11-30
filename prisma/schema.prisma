@@ -5,11 +5,164 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------
+// NextAuth.js (Auth.js) Required Models
+// ------------------------------------------------------
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String? 
+  password      String?   // Credentials認証用
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  accounts      Account[]
+  sessions      Session[]
+
+  // アプリケーション固有のリレーション
+  folders       Folder[]
+  pages         Page[]
+  tags          Tag[]
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ------------------------------------------------------
+// Bookmark App Models
+// ------------------------------------------------------
+
+// フォルダ（階層構造あり）
+model Folder {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // ユーザーとの関係
+  userId    String @map("user_id")
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 親フォルダ（自己参照・階層構造）
+  parentId  String? @map("parent_id")
+  parent    Folder? @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children  Folder[] @relation("FolderHierarchy")
+
+  // ページとの多対多関係
+  pages     PageOnFolder[]
+
+  @@map("folders")
+}
+
+// ページ（ブックマーク本体）
+model Page {
+  id        String   @id @default(uuid())
+  url       String
+  title     String
+  memo      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // ユーザーとの関係
+  userId    String @map("user_id")
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // リレーション
+  folders   PageOnFolder[]
+  tags      PageOnTag[]
+
+  @@unique([url, userId])
+  @@map("pages")
+}
+
+// フォルダとページの中間テーブル（多対多）
+model PageOnFolder {
+  id        String   @id @default(uuid())
+  pageId    String   @map("page_id")
+  folderId  String   @map("folder_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  page      Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  folder    Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, folderId]) // 同じフォルダに同じページは重複させない
+  @@map("page_on_folders")
+}
+
+// タグ
+model Tag {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId    String @map("user_id")
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  pages     PageOnTag[]
+
+  // 同じユーザーが同じ名前のタグを複数作れないようにする制約
+  @@unique([name, userId])
+  @@map("tags")
+}
+
+// ページとタグの中間テーブル（多対多）
+model PageOnTag {
+  id        String @id @default(uuid())
+  pageId    String @map("page_id")
+  tagId     String @map("tag_id")
+
+  page      Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tag       Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, tagId])
+  @@map("page_on_tags")
 }
