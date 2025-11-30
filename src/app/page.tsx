@@ -1,100 +1,95 @@
-import Image from 'next/image';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Search, Layout, Grid2X2Check } from 'lucide-react'; // アイコン用
 
-export default function Home() {
+export default async function Home() {
+  // 1. サーバーサイドでセッションを取得
+  const session = await getServerSession(authOptions);
+
+  // 2. ログイン済みならブックマーク一覧へリダイレクト
+  if (session) {
+    redirect('/pages');
+  }
+
+  // 3. 未ログインならランディングページを表示
   return (
-    <div className='grid min-h-screen grid-rows-[20px_1fr_20px] items-center justify-items-center gap-16 p-8 pb-20 font-[family-name:var(--font-geist-sans)] sm:p-20'>
-      <main className='row-start-2 flex flex-col items-center gap-8 sm:items-start'>
-        <Image
-          className='dark:invert'
-          src='https://nextjs.org/icons/next.svg'
-          alt='Next.js logo'
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className='list-inside list-decimal text-center font-[family-name:var(--font-geist-mono)] text-sm sm:text-left'>
-          <li className='mb-2'>
-            Get started by editing{' '}
-            <code className='rounded bg-black/[.05] px-1 py-0.5 font-semibold dark:bg-white/[.06]'>
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className='flex flex-col items-center gap-4 sm:flex-row'>
-          <a
-            className='flex h-10 items-center justify-center gap-2 rounded-full border border-solid border-transparent bg-foreground px-4 text-sm text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] sm:h-12 sm:px-5 sm:text-base'
-            href='https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app'
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            <Image
-              className='dark:invert'
-              src='https://nextjs.org/icons/vercel.svg'
-              alt='Vercel logomark'
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className='flex h-10 items-center justify-center rounded-full border border-solid border-black/[.08] px-4 text-sm transition-colors hover:border-transparent hover:bg-[#f2f2f2] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] sm:h-12 sm:min-w-44 sm:px-5 sm:text-base'
-            href='https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app'
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            Read our docs
-          </a>
+    <div className='flex min-h-screen flex-col'>
+      {/* -----------------------------------
+        ヒーローセクション（メインビジュアル）
+        -----------------------------------
+      */}
+      <section className='flex flex-col items-center justify-center bg-gradient-to-b from-white to-gray-50 px-4 py-24 text-center'>
+        <h1 className='mb-6 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-6xl'>
+          情報過多の時代に終止符を。
+          <br className='hidden sm:inline' />
+          あなたのブックマークを資産に変える。
+        </h1>
+        <p className='mb-10 max-w-2xl text-lg text-slate-600'>
+          階層型フォルダと高度なタグ機能で、情報を完全にコントロール。
+        </p>
+        <div className='flex gap-4'>
+          <Button size='lg' asChild>
+            <Link href='/register'>新規登録</Link>
+          </Button>
+          <Button size='lg' variant='outline' asChild>
+            <Link href='/login'>ログイン</Link>
+          </Button>
         </div>
-      </main>
-      <footer className='row-start-3 flex flex-wrap items-center justify-center gap-6'>
-        <a
-          className='flex items-center gap-2 hover:underline hover:underline-offset-4'
-          href='https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app'
-          target='_blank'
-          rel='noopener noreferrer'
-        >
-          <Image
-            aria-hidden
-            src='https://nextjs.org/icons/file.svg'
-            alt='File icon'
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className='flex items-center gap-2 hover:underline hover:underline-offset-4'
-          href='https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app'
-          target='_blank'
-          rel='noopener noreferrer'
-        >
-          <Image
-            aria-hidden
-            src='https://nextjs.org/icons/window.svg'
-            alt='Window icon'
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className='flex items-center gap-2 hover:underline hover:underline-offset-4'
-          href='https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app'
-          target='_blank'
-          rel='noopener noreferrer'
-        >
-          <Image
-            aria-hidden
-            src='https://nextjs.org/icons/globe.svg'
-            alt='Globe icon'
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      </section>
+
+      {/* -----------------------------------
+        機能紹介セクション (Features)
+        -----------------------------------
+      */}
+      <section className='bg-white px-4 py-20'>
+        <div className='container mx-auto'>
+          <h2 className='mb-12 text-center text-3xl font-bold'>bukumaneでできること</h2>
+
+          <div className='grid grid-cols-1 gap-8 md:grid-cols-3'>
+            <div className='rounded-xl border p-6 shadow-sm transition-shadow hover:shadow-md'>
+              <div className='mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 text-blue-600'>
+                <Layout className='h-6 w-6' />
+              </div>
+              <h3 className='mb-2 text-xl font-bold'>フォルダinフォルダ</h3>
+              <p className='text-gray-600'>大分類・小分類を自在に作成。</p>
+            </div>
+
+            <div className='rounded-xl border p-6 shadow-sm transition-shadow hover:shadow-md'>
+              <div className='mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 text-green-600'>
+                <Search className='h-6 w-6' />
+              </div>
+              <h3 className='mb-2 text-xl font-bold'>究極の検索性</h3>
+              <p className='text-gray-600'>タグ、メモ、タイトル全てから瞬時に情報にアクセス。</p>
+            </div>
+
+            <div className='rounded-xl border p-6 shadow-sm transition-shadow hover:shadow-md'>
+              <div className='mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 text-purple-600'>
+                <Grid2X2Check className='h-6 w-6' />
+              </div>
+              <h3 className='mb-2 text-xl font-bold'>シンプルなUI</h3>
+              <p className='text-gray-600'>複雑さを排除した直感的な操作感。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* -----------------------------------
+        CTAセクション (Call To Action)
+        -----------------------------------
+      */}
+      <section className='bg-slate-900 px-4 py-20 text-center text-white'>
+        <h2 className='mb-6 text-3xl font-bold'>あなたの情報整理のストレスを解消します。</h2>
+        <Button size='lg' variant='secondary' asChild className='px-8 text-lg'>
+          <Link href='/register'>今すぐアカウント作成</Link>
+        </Button>
+      </section>
+
+      {/* フッター */}
+      <footer className='border-t py-6 text-center text-sm text-gray-500'>
+        &copy; {new Date().getFullYear()} bukumane. All rights reserved.
       </footer>
     </div>
   );
