@@ -1,0 +1,19 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 依存関係のインストール
+COPY package*.json ./
+RUN npm install
+
+# ソースコードのコピー
+COPY . .
+
+# Prismaクライアントの生成（開発用）
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
+
+# ポート公開
+EXPOSE 3000
+
+# 開発サーバー起動
+CMD ["npm", "run", "dev"]
