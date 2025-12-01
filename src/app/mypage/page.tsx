@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
 
 // バリデーションスキーマ
 const profileSchema = z.object({
@@ -31,10 +32,13 @@ export default function MyPage() {
     register,
     handleSubmit,
     setValue,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
   });
+
+  const router = useRouter();
 
   // 初回データ取得
   useEffect(() => {
@@ -73,13 +77,11 @@ export default function MyPage() {
 
       // セッション情報をクライアント側でも更新
       await update({
-        ...session,
-        user: {
-          ...session?.user,
-          name: data.name,
-          email: data.email,
-        },
+        name: data.name,
+        email: data.email,
       });
+
+      router.refresh();
 
       setIsEditing(false); // 編集モード終了
     } catch (error) {
@@ -191,7 +193,10 @@ export default function MyPage() {
                     <Button
                       type='button'
                       variant='outline'
-                      onClick={() => setIsEditing(false)}
+                      onClick={() => {
+                        clearErrors();
+                        setIsEditing(false);
+                      }}
                       disabled={isSubmitting}
                     >
                       キャンセル
