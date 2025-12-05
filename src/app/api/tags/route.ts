@@ -2,40 +2,95 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { z } from 'zod';
 
+// バリデーションスキーマ
+const tagSchema = z.object({
+  name: z.string().min(1, 'タグ名を入力してください').max(50),
+});
+const tagUpdateSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).max(50),
+});
+const tagDeleteSchema = z.object({
+  id: z.string(),
+});
+
+// ヘルパー: ユーザーID取得
+async function getUserId() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || !('id' in session.user)) return null;
+  return (session.user as { id: string }).id;
+}
+
+// GET: 一覧取得 (変更: idとnameを返す)
 export async function GET() {
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json([], { status: 401 });
+
   try {
-    // 1. セッションチェック
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user || !('id' in session.user)) {
-      // ログインしていない場合、空のタグリストを返します (または401エラー)
-      return NextResponse.json([]);
-    }
-
-    const userId = (session.user as { id: string }).id;
-
-    // 2. ユーザーIDに基づいてタグをDBから取得
-    // Tag.name のみを必要とするため、selectで絞り込みます
     const tags = await prisma.tag.findMany({
-      where: {
-        userId: userId,
-      },
-      select: {
-        name: true,
-      },
-      orderBy: {
-        name: 'asc', // タグ名をアルファベット順でソート
-      },
+      where: { userId },
+      select: { id: true, name: true }, // IDも取得する
+      orderBy: { name: 'asc' },
     });
-
-    // 3. レスポンス用にタグ名の配列に変換
-    const tagNames = tags.map((tag) => tag.name);
-
-    return NextResponse.json(tagNames);
+    return NextResponse.json(tags);
   } catch (error) {
-    console.error('Failed to fetch tags:', error);
-    // エラー発生時は空の配列を返し、フロントエンドでの処理を継続できるようにします
     return NextResponse.json([], { status: 500 });
+  }
+}
+
+// POST: 作成
+export async function POST(req: Request) {
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    const body = await req.json();
+    const { name } = tagSchema.parse(body);
+
+    const tag = await prisma.tag.create({
+      data: { name, userId },
+    });
+    return NextResponse.json(tag, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to create tag' }, { status: 500 });
+  }
+}
+
+// PUT: 編集
+export async function PUT(req: Request) {
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    const body = await req.json();
+    const { id, name } = tagUpdateSchema.parse(body);
+
+    const tag = await prisma.tag.update({
+      where: { id, userId }, // 自分のタグのみ更新
+      data: { name },
+    });
+    return NextResponse.json(tag);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to update tag' }, { status: 500 });
+  }
+}
+
+// DELETE: 削除
+export async function DELETE(req: Request) {
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    const body = await req.json();
+    const { id } = tagDeleteSchema.parse(body);
+
+    await prisma.tag.delete({
+      where: { id, userId },
+    });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete tag' }, { status: 500 });
   }
 }

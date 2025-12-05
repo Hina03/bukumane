@@ -45,8 +45,9 @@ export default function AddBookmarkPage() {
       try {
         const res = await fetch('/api/tags');
         if (res.ok) {
-          const data: string[] = await res.json();
-          setAvailableTags(data);
+          const data: { id: string; name: string }[] = await res.json();
+          const tagNames = data.map((t) => t.name);
+          setAvailableTags(tagNames);
         }
       } catch (error) {
         console.error('タグの取得に失敗しました', error);
