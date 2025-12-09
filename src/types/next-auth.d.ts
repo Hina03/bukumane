@@ -1,5 +1,4 @@
-import NextAuth, { DefaultSession, DefaultUser } from 'next-auth';
-import { JWT } from 'next-auth/jwt';
+import { DefaultSession } from 'next-auth';
 
 // ユーザー（DB）の型
 declare module 'next-auth' {

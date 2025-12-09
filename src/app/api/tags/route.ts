@@ -35,6 +35,7 @@ export async function GET() {
       orderBy: { name: 'asc' },
     });
     return NextResponse.json(tags);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     return NextResponse.json([], { status: 500 });
   }
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
       data: { name, userId },
     });
     return NextResponse.json(tag, { status: 201 });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create tag' }, { status: 500 });
   }
@@ -72,6 +74,7 @@ export async function PUT(req: Request) {
       data: { name },
     });
     return NextResponse.json(tag);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update tag' }, { status: 500 });
   }
@@ -90,6 +93,7 @@ export async function DELETE(req: Request) {
       where: { id, userId },
     });
     return NextResponse.json({ success: true });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete tag' }, { status: 500 });
   }
