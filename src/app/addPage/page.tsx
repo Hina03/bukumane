@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, PlusCircle, BookmarkPlus, Save } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,8 @@ export default function AddBookmarkPage() {
     resolver: zodResolver(bookmarkSchema),
     defaultValues: { tags: '' },
   });
+
+  const router = useRouter();
 
   // --- タグ関連の処理 ---
   // DBからタグを取得する
@@ -111,6 +114,7 @@ export default function AddBookmarkPage() {
       reset();
       setSelectedTags([]);
       setNewTagInput('');
+      router.push('/pages');
     } catch (error) {
       alert('登録処理中にエラーが発生しました。');
       console.error(error);
