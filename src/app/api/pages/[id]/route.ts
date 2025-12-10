@@ -7,7 +7,7 @@ import { z } from 'zod';
 // 更新用バリデーションスキーマ
 const updatePageSchema = z.object({
   title: z.string().min(1),
-  url: z.string().url(),
+  url: z.url(),
   memo: z.string().optional(),
   tags: z.array(z.string()), // タグ名の配列
 });
