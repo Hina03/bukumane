@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, ExternalLink, FilterX, Plus } from 'lucide-react';
+import { Loader2, ExternalLink, Plus } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+
+import SearchPanel from '@/components/SearchPanel';
 
 // 型定義
 type Tag = {
@@ -37,8 +39,8 @@ export default function PagesList() {
       setIsLoading(true);
       try {
         // タグが選択されていればクエリパラメータを付与
-        const query = selectedTag ? `?tag=${encodeURIComponent(selectedTag)}` : '';
-        const res = await fetch(`/api/pages${query}`);
+        const query = searchParams.toString();
+        const res = await fetch(`/api/pages?${query}`);
 
         if (res.ok) {
           const data = await res.json();
@@ -52,12 +54,12 @@ export default function PagesList() {
     };
 
     fetchBookmarks();
-  }, [selectedTag]); // selectedTagが変わるたびに再取得
+  }, [searchParams]); // searchParamsが変わるたびに再取得
 
   // タグクリック時の処理
   const handleTagClick = (e: React.MouseEvent, tagName: string) => {
-    e.stopPropagation(); // カードのクリックイベント（詳細遷移）を止める
-    router.push(`/pages?tag=${encodeURIComponent(tagName)}`);
+    e.stopPropagation();
+    router.push(`/pages?inc=${encodeURIComponent(tagName)}`);
   };
 
   // フィルタ解除
@@ -80,24 +82,9 @@ export default function PagesList() {
       {/* ヘッダーエリア */}
       <div className='mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center'>
         <h1 className='text-3xl font-bold'>ページ一覧</h1>
-
-        {/* フィルタ中の表示と解除ボタン */}
-        {selectedTag && (
-          <div className='flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-4 py-2'>
-            <span className='text-sm text-blue-700'>
-              タグ: <strong>{selectedTag}</strong> で絞り込み中
-            </span>
-            <Button
-              variant='ghost'
-              size='sm'
-              onClick={clearFilter}
-              className='h-6 w-6 rounded-full p-0 hover:bg-blue-200'
-            >
-              <FilterX className='h-4 w-4 text-blue-700' />
-            </Button>
-          </div>
-        )}
       </div>
+
+      <SearchPanel />
 
       {/* ローディング表示 */}
       {isLoading ? (
