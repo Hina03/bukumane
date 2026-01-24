@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Camera, Save, Pencil, User as UserIcon, Loader2 } from 'lucide-react';
+import TagManager from '@/components/TagManager';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -214,6 +215,10 @@ export default function MyPage() {
                 )}
               </div>
             </form>
+            {/* タグ管理 */}
+            <div className='mt-4 w-full max-w-md border-t pt-6'>
+              <TagManager />
+            </div>
           </div>
         </CardContent>
       </Card>

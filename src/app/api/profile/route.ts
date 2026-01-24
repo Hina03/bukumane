@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
-import bcrypt from 'bcryptjs';
 
 // 更新用バリデーション
 const updateSchema = z.object({
@@ -39,6 +38,7 @@ export async function GET() {
       image: user.image,
       bookmarkCount: user._count.pages,
     });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -62,6 +62,7 @@ export async function PUT(req: Request) {
     });
 
     return NextResponse.json(updatedUser);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
   }
