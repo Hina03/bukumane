@@ -8,11 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 
 import SearchPanel from '@/components/SearchPanel';
 import FolderGrid from '@/components/FolderGrid';
 import FolderBreadcrumb from '@/components/FolderBreadcrumb';
 import BookmarkActions from '@/components/BookmarkActions';
+import BulkActionBar from '@/components/BulkActionBar';
 
 // 型定義
 type Tag = {
@@ -44,6 +46,40 @@ export default function PagesList() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // 選択の切り替え
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+  };
+
+  // 一括移動の実行
+  const handleBulkMove = async (folderId: string) => {
+    const res = await fetch('/api/pages/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ ids: selectedIds, action: 'move', folderId }),
+    });
+    if (res.ok) {
+      setIsSelectMode(false);
+      setSelectedIds([]);
+      fetchData(); // 再取得
+    }
+  };
+
+  // 一括削除の実行
+  const handleBulkDelete = async () => {
+    if (!confirm(`${selectedIds.length}件のブックマークを削除しますか？`)) return;
+    const res = await fetch('/api/pages/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ ids: selectedIds, action: 'delete' }),
+    });
+    if (res.ok) {
+      setIsSelectMode(false);
+      setSelectedIds([]);
+      fetchData();
+    }
+  };
 
   // フォルダとブックマークの両方を取得
   const fetchData = async () => {
@@ -124,6 +160,18 @@ export default function PagesList() {
       />
 
       <hr className='my-8 border-slate-100' />
+      <div className='mb-8 flex items-center justify-between'>
+        {/* モード切替ボタン */}
+        <Button
+          variant={isSelectMode ? 'secondary' : 'outline'}
+          onClick={() => {
+            setIsSelectMode(!isSelectMode);
+            setSelectedIds([]);
+          }}
+        >
+          {isSelectMode ? 'キャンセル' : '選択'}
+        </Button>
+      </div>
 
       {/* ローディング表示 */}
       {isLoading ? (
@@ -145,9 +193,22 @@ export default function PagesList() {
           {bookmarks.map((bookmark) => (
             <Card
               key={bookmark.id}
-              className='group relative cursor-pointer transition-shadow duration-200 hover:shadow-lg'
-              onClick={() => router.push(`/pages/${bookmark.id}`)} // 詳細ページへ遷移
+              className={`group relative transition-all ${
+                selectedIds.includes(bookmark.id) ? 'bg-blue-50/30 ring-2 ring-blue-500' : ''
+              }`}
+              onClick={() =>
+                isSelectMode ? toggleSelect(bookmark.id) : router.push(`/pages/${bookmark.id}`)
+              }
             >
+              {/* チェックボックス (選択モード時のみ) */}
+              {isSelectMode && (
+                <div className='absolute left-3 top-3 z-20'>
+                  <Checkbox
+                    checked={selectedIds.includes(bookmark.id)}
+                    onCheckedChange={() => toggleSelect(bookmark.id)}
+                  />
+                </div>
+              )}
               <CardHeader className='flex flex-row items-center gap-4 pb-2'>
                 {/* アイコン (Google Favicon API使用) */}
                 <Avatar className='h-10 w-10 border bg-gray-50'>
@@ -207,6 +268,17 @@ export default function PagesList() {
           ))}
         </div>
       )}
+      {/* 一括操作バー */}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        allFolders={folders}
+        onMove={handleBulkMove}
+        onDelete={handleBulkDelete}
+        onCancel={() => {
+          setIsSelectMode(false);
+          setSelectedIds([]);
+        }}
+      />
       <Button
         onClick={() => router.push('/addPage')} // 登録画面のパスを指定
         className='fixed bottom-8 right-8 z-50 h-14 w-14 rounded-full shadow-xl transition-transform hover:scale-105'
