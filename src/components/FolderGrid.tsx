@@ -36,6 +36,7 @@ interface FolderGridProps {
   currentFolderId: string | null;
   onFolderClick: (id: string) => void;
   onFolderCreated: () => void;
+  onDropBookmark: (bookmarkId: string, folderId: string, folderName: string) => void;
 }
 
 export default function FolderGrid({
@@ -43,6 +44,7 @@ export default function FolderGrid({
   currentFolderId,
   onFolderClick,
   onFolderCreated,
+  onDropBookmark,
 }: FolderGridProps) {
   const [newFolderName, setNewFolderName] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -119,6 +121,21 @@ export default function FolderGrid({
         {displayedFolders.map((folder) => (
           <Card
             key={folder.id}
+            onDragOver={(e) => {
+              e.preventDefault(); // これがないとドロップを許可できない
+              e.currentTarget.classList.add('bg-blue-100', 'border-blue-500');
+            }}
+            onDragLeave={(e) => {
+              e.currentTarget.classList.remove('bg-blue-100', 'border-blue-500');
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.currentTarget.classList.remove('bg-blue-100', 'border-blue-500');
+              const bookmarkId = e.dataTransfer.getData('bookmarkId');
+              if (bookmarkId) {
+                onDropBookmark(bookmarkId, folder.id, folder.name);
+              }
+            }}
             className='group relative flex cursor-pointer items-center gap-3 p-3 transition-colors hover:bg-slate-50'
             onClick={() => onFolderClick(folder.id)}
           >

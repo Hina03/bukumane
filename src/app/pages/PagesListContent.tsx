@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from 'sonner';
 
 import SearchPanel from '@/components/SearchPanel';
 import FolderGrid from '@/components/FolderGrid';
@@ -116,6 +117,31 @@ export default function PagesList() {
     router.push(`/pages?${params.toString()}`);
   };
 
+  // ドラッグ＆ドロップ時の移動処理（Undo機能付き）
+  const handleDropBookmark = async (bookmarkId: string, folderId: string, folderName: string) => {
+    const res = await fetch(`/api/pages/${bookmarkId}/folders`, {
+      method: 'POST',
+      body: JSON.stringify({ folderId }),
+    });
+
+    if (res.ok) {
+      fetchData(); // リスト更新
+
+      toast(`「${folderName}」に追加しました`, {
+        action: {
+          label: '元に戻す',
+          onClick: async () => {
+            await fetch(`/api/pages/${bookmarkId}/folders?folderId=${folderId}`, {
+              method: 'DELETE',
+            });
+            fetchData();
+            toast.success('元に戻しました');
+          },
+        },
+      });
+    }
+  };
+
   // タグクリック時の処理
   const handleTagClick = (e: React.MouseEvent, tagName: string) => {
     e.stopPropagation();
@@ -157,6 +183,7 @@ export default function PagesList() {
         currentFolderId={currentFolderId}
         onFolderClick={handleFolderClick}
         onFolderCreated={fetchData}
+        onDropBookmark={handleDropBookmark}
       />
 
       <hr className='my-8 border-slate-100' />
@@ -193,6 +220,16 @@ export default function PagesList() {
           {bookmarks.map((bookmark) => (
             <Card
               key={bookmark.id}
+              draggable={!isSelectMode} // 選択モード中はドラッグ不可にする
+              onDragStart={(e) => {
+                e.dataTransfer.setData('bookmarkId', bookmark.id);
+                e.dataTransfer.effectAllowed = 'move';
+                // ドラッグ中の見た目を少し薄くする
+                e.currentTarget.style.opacity = '0.5';
+              }}
+              onDragEnd={(e) => {
+                e.currentTarget.style.opacity = '1';
+              }}
               className={`group relative transition-all ${
                 selectedIds.includes(bookmark.id) ? 'bg-blue-50/30 ring-2 ring-blue-500' : ''
               }`}
