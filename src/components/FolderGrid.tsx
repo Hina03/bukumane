@@ -1,9 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { Folder as FolderIcon, Plus } from 'lucide-react';
+import { Folder as FolderIcon, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +45,8 @@ export default function FolderGrid({
   onFolderCreated,
 }: FolderGridProps) {
   const [newFolderName, setNewFolderName] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // 現在の階層にあるフォルダのみをフィルタリング
@@ -51,6 +64,25 @@ export default function FolderGrid({
       setNewFolderName('');
       setIsDialogOpen(false);
       onFolderCreated(); // 親コンポーネントに再取得を通知
+    }
+  };
+
+  const handleDeleteFolder = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // フォルダ移動イベントが発火するのを防ぐ
+    setIsDeleting(true);
+
+    try {
+      const res = await fetch(`/api/folders/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        onFolderCreated(); // データの再取得
+      }
+    } catch (error) {
+      console.error('削除失敗', error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -87,11 +119,46 @@ export default function FolderGrid({
         {displayedFolders.map((folder) => (
           <Card
             key={folder.id}
-            className='group flex cursor-pointer items-center gap-3 p-3 transition-colors hover:bg-slate-50'
+            className='group relative flex cursor-pointer items-center gap-3 p-3 transition-colors hover:bg-slate-50'
             onClick={() => onFolderClick(folder.id)}
           >
-            <FolderIcon className='h-5 w-5 fill-blue-500 text-blue-500' />
-            <span className='truncate text-sm font-medium'>{folder.name}</span>
+            <FolderIcon className='h-5 w-5 shrink-0 fill-blue-500 text-blue-500' />
+            <span className='truncate pr-6 text-sm font-medium'>{folder.name}</span>
+
+            {/* 削除ボタン（ホバー時のみ表示） */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className='absolute right-2 p-1 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100'
+                >
+                  <Trash2 className='h-3.5 w-3.5' />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className='flex items-center gap-2'>
+                    <AlertTriangle className='h-5 w-5 text-red-500' />
+                    フォルダを削除しますか？
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    「{folder.name}
+                    」を削除します。このフォルダ内のサブフォルダもすべて削除されます。
+                    <br />
+                    ※中のブックマーク自体は削除されず、「未分類」となります。
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>キャンセル</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => handleDeleteFolder(e, folder.id)}
+                    className='bg-red-500 hover:bg-red-600'
+                  >
+                    削除する
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </Card>
         ))}
       </div>
