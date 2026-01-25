@@ -12,6 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import SearchPanel from '@/components/SearchPanel';
 import FolderGrid from '@/components/FolderGrid';
 import FolderBreadcrumb from '@/components/FolderBreadcrumb';
+import BookmarkActions from '@/components/BookmarkActions';
 
 // 型定義
 type Tag = {
@@ -24,6 +25,7 @@ type Bookmark = {
   title: string;
   url: string;
   tags: Tag[];
+  folders: { id: string; name: string }[];
   createdAt: string;
 };
 
@@ -158,6 +160,14 @@ export default function PagesList() {
                     {bookmark.title}
                   </CardTitle>
                   <p className='truncate text-xs text-muted-foreground'>{bookmark.url}</p>
+                </div>
+                <div className='z-10' onClick={(e) => e.stopPropagation()}>
+                  <BookmarkActions
+                    bookmarkId={bookmark.id}
+                    currentFolderIds={bookmark.folders.map((f) => f.id)}
+                    allFolders={folders} // 親で保持している全フォルダリスト
+                    onRefresh={fetchData}
+                  />
                 </div>
               </CardHeader>
 
