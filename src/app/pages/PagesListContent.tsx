@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 import SearchPanel from '@/components/SearchPanel';
+import FolderGrid from '@/components/FolderGrid';
+import FolderBreadcrumb from '@/components/FolderBreadcrumb';
 
 // 型定義
 type Tag = {
@@ -25,36 +27,56 @@ type Bookmark = {
   createdAt: string;
 };
 
+type Folder = {
+  id: string;
+  name: string;
+  parentId: string | null;
+};
+
 export default function PagesList() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedTag = searchParams.get('tag'); // URLから選択中のタグを取得
+  const currentFolderId = searchParams.get('folder'); // URLから選択中のフォルダを取得
 
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // データ取得
+  // フォルダとブックマークの両方を取得
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const query = searchParams.toString();
+      const [pagesRes, foldersRes] = await Promise.all([
+        fetch(`/api/pages?${query}`),
+        fetch('/api/folders'), // フォルダは常に全件（フラットに）取得
+      ]);
+
+      if (pagesRes.ok) setBookmarks(await pagesRes.json());
+      if (foldersRes.ok) setFolders(await foldersRes.json());
+    } catch (error) {
+      console.error('データの取得に失敗しました', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchBookmarks = async () => {
-      setIsLoading(true);
-      try {
-        // タグが選択されていればクエリパラメータを付与
-        const query = searchParams.toString();
-        const res = await fetch(`/api/pages?${query}`);
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
-        if (res.ok) {
-          const data = await res.json();
-          setBookmarks(data);
-        }
-      } catch (error) {
-        console.error('ブックマークの取得に失敗しました', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchBookmarks();
-  }, [searchParams]); // searchParamsが変わるたびに再取得
+  // フォルダクリック時のURL更新
+  const handleFolderClick = (id: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (id) {
+      params.set('folder', id);
+    } else {
+      params.delete('folder');
+    }
+    router.push(`/pages?${params.toString()}`);
+  };
 
   // タグクリック時の処理
   const handleTagClick = (e: React.MouseEvent, tagName: string) => {
@@ -85,6 +107,21 @@ export default function PagesList() {
       </div>
 
       <SearchPanel />
+
+      <FolderBreadcrumb
+        currentFolderId={currentFolderId}
+        folders={folders}
+        onNavigate={handleFolderClick}
+      />
+
+      <FolderGrid
+        folders={folders}
+        currentFolderId={currentFolderId}
+        onFolderClick={handleFolderClick}
+        onFolderCreated={fetchData}
+      />
+
+      <hr className='my-8 border-slate-100' />
 
       {/* ローディング表示 */}
       {isLoading ? (
