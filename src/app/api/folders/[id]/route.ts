@@ -3,6 +3,28 @@ import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { name } = await req.json();
+    if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+
+    const updatedFolder = await prisma.folder.update({
+      where: {
+        id: params.id,
+        userId: session.user.id, // 自分のフォルダのみ
+      },
+      data: { name },
+    });
+
+    return NextResponse.json(updatedFolder);
+  } catch {
+    return NextResponse.json({ error: 'Failed to update folder' }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);

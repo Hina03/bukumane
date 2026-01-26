@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, ExternalLink, Plus } from 'lucide-react';
+import { Loader2, ExternalLink, Plus, Pencil, Check, X } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 
 import SearchPanel from '@/components/SearchPanel';
@@ -49,6 +50,39 @@ export default function PagesList() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editValue, setEditValue] = useState('');
+
+  const currentFolder = folders.find((f) => f.id === currentFolderId);
+
+  let displayTitle = 'すべて';
+  if (currentFolderId === 'uncategorized') {
+    displayTitle = '未分類';
+  } else if (currentFolder) {
+    displayTitle = currentFolder.name;
+  }
+
+  // フォルダ名変更の実行関数
+  const handleRenameFolder = async () => {
+    if (!currentFolderId || editValue === currentFolder?.name || !editValue.trim()) {
+      setIsEditingTitle(false);
+      return;
+    }
+
+    const res = await fetch(`/api/folders/${currentFolderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: editValue }),
+    });
+
+    if (res.ok) {
+      toast.success('フォルダ名を変更しました');
+      setIsEditingTitle(false);
+      fetchData(); // フォルダ一覧を再取得
+    } else {
+      toast.error('変更に失敗しました');
+    }
+  };
 
   // 選択の切り替え
   const toggleSelect = (id: string) => {
@@ -180,7 +214,49 @@ export default function PagesList() {
     <div className='container mx-auto px-4 py-8'>
       {/* ヘッダーエリア */}
       <div className='mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center'>
-        <h1 className='text-3xl font-bold'>ページ一覧</h1>
+        <div className='group flex items-center gap-2'>
+          {isEditingTitle ? (
+            // 編集モード
+            <div className='flex items-center gap-2'>
+              <Input
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className='h-10 w-64 text-2xl font-bold'
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRenameFolder();
+                  if (e.key === 'Escape') setIsEditingTitle(false);
+                }}
+              />
+              <Button size='icon' variant='ghost' onClick={handleRenameFolder}>
+                <Check className='h-5 w-5 text-green-600' />
+              </Button>
+              <Button size='icon' variant='ghost' onClick={() => setIsEditingTitle(false)}>
+                <X className='h-5 w-5 text-red-600' />
+              </Button>
+            </div>
+          ) : (
+            // 通常表示モード
+            <>
+              <h1 className='text-3xl font-bold'>{displayTitle}</h1>
+
+              {/* 「未分類」でも「すべて」でもない場合のみ編集アイコンを出す */}
+              {currentFolderId && currentFolderId !== 'uncategorized' && (
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  className='opacity-0 transition-opacity group-hover:opacity-100'
+                  onClick={() => {
+                    setEditValue(displayTitle);
+                    setIsEditingTitle(true);
+                  }}
+                >
+                  <Pencil className='h-5 w-5 text-gray-400' />
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <SearchPanel />
