@@ -190,9 +190,14 @@ export default function FolderGrid({
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>キャンセル</AlertDialogCancel>
+                      <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+                        キャンセル
+                      </AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={(e) => handleDeleteFolder(e, folder.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteFolder(e, folder.id);
+                        }}
                         className='bg-red-500 hover:bg-red-600'
                       >
                         削除する
