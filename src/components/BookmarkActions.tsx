@@ -1,6 +1,6 @@
 'use client';
 
-import { MoreVertical, FolderPlus, Check, Folder } from 'lucide-react';
+import { MoreVertical, FolderPlus, Check, Folder, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'; // ShadcnのDropdownコンポーネントを想定
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 type Props = {
   bookmarkId: string;
@@ -27,6 +28,25 @@ export default function BookmarkActions({
   allFolders,
   onRefresh,
 }: Props) {
+  const handleDelete = async () => {
+    if (!confirm('このブックマークを削除しますか？')) return;
+
+    try {
+      const res = await fetch(`/api/pages/${bookmarkId}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        toast.success('削除しました');
+        onRefresh(); // 親コンポーネントを再読み込み
+      } else {
+        toast.error('削除に失敗しました');
+      }
+    } catch {
+      toast.error('エラーが発生しました');
+    }
+  };
+
   const toggleFolder = async (folderId: string, isInFolder: boolean) => {
     const method = isInFolder ? 'DELETE' : 'POST';
     const url = isInFolder
@@ -84,7 +104,13 @@ export default function BookmarkActions({
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 
-        <DropdownMenuItem className='text-red-600'>ブックマークを削除</DropdownMenuItem>
+        <DropdownMenuItem
+          className='text-red-600 focus:bg-red-50 focus:text-red-600'
+          onClick={handleDelete}
+        >
+          <Trash2 className='mr-2 h-4 w-4' />
+          <span>ブックマークを削除</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

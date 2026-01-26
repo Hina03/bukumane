@@ -113,14 +113,20 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
 // DELETE: 削除
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const userId = await checkOwnership(req, params.id);
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
   try {
-    await prisma.page.delete({ where: { id: params.id } });
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    await prisma.page.delete({
+      where: {
+        id: params.id,
+        userId: session.user.id, // 他人のブックマークを消せないように
+      },
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Delete Failed' }, { status: 500 });
+    console.error('DELETE Error:', error);
+    return NextResponse.json({ error: 'Failed to delete bookmark' }, { status: 500 });
   }
 }
