@@ -93,7 +93,20 @@ export default function PagesList() {
       ]);
 
       if (pagesRes.ok) setBookmarks(await pagesRes.json());
-      if (foldersRes.ok) setFolders(await foldersRes.json());
+      if (foldersRes.ok) {
+        const fetchedFolders = await foldersRes.json();
+
+        // ★ ここで「未分類」フォルダを先頭に追加する
+        // 仮想的なID 'uncategorized' を付与
+        const uncategorizedFolder: Folder = {
+          id: 'uncategorized',
+          name: '未分類',
+          parentId: null, // ルートに表示するためnull
+        };
+
+        // 配列の先頭に結合
+        setFolders([uncategorizedFolder, ...fetchedFolders]);
+      }
     } catch (error) {
       console.error('データの取得に失敗しました', error);
     } finally {

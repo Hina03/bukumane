@@ -43,9 +43,16 @@ export async function GET(req: Request) {
       AND: [],
     };
 
-    // 1. フォルダによる絞り込み (NEW)
-    // 指定されたフォルダIDを持つ中間テーブル(PageOnFolder)が存在するか確認
-    if (folderId) {
+    // 1. フォルダによる絞り込み
+    if (folderId === 'uncategorized') {
+      // ★ 追加: 未分類（フォルダ紐付けが0件）のものを取得
+      whereCondition.AND.push({
+        folders: {
+          none: {}, // 関連レコードが存在しないものを探す
+        },
+      });
+    } else if (folderId) {
+      // 既存: 特定のフォルダIDを持つものを取得
       whereCondition.AND.push({
         folders: {
           some: {
