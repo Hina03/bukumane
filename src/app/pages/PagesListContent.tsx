@@ -335,20 +335,34 @@ export default function PagesList() {
                   />
                 </div>
               )}
-              <CardHeader className='flex flex-row items-center gap-4 pb-2'>
+              <CardHeader className='relative flex flex-row items-center gap-4 pb-2'>
                 {/* アイコン (Google Favicon API使用) */}
                 <Avatar className='h-10 w-10 border bg-gray-50'>
                   <AvatarImage src={getFaviconUrl(bookmark.url)} alt={bookmark.title} />
                   <AvatarFallback>{bookmark.title.substring(0, 1)}</AvatarFallback>
                 </Avatar>
 
-                <div className='flex-1 overflow-hidden'>
+                <div className='flex-1 overflow-hidden pr-16'>
                   <CardTitle className='truncate text-base' title={bookmark.title}>
                     {bookmark.title}
                   </CardTitle>
                   <p className='truncate text-xs text-muted-foreground'>{bookmark.url}</p>
                 </div>
-                <div className='z-10' onClick={(e) => e.stopPropagation()}>
+                <div
+                  className='absolute right-2 top-2 z-10 flex items-center gap-1'
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* 外部リンクアイコン */}
+                  <a
+                    href={bookmark.url}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='block rounded-full border bg-white p-2 shadow-sm hover:bg-gray-100'
+                    title='サイトを開く'
+                  >
+                    <ExternalLink className='h-4 w-4 text-gray-500' />
+                  </a>
+                  {/* アクションメニュー */}
                   <BookmarkActions
                     bookmarkId={bookmark.id}
                     currentFolderIds={bookmark.folders.map((f) => f.id)}
@@ -375,19 +389,6 @@ export default function PagesList() {
                   ) : (
                     <span className='text-xs text-gray-400'>タグなし</span>
                   )}
-                </div>
-
-                {/* 右上の外部リンクアイコン (おまけ: 直接サイトへ飛ぶ用) */}
-                <div className='absolute right-4 top-4 opacity-0 transition-opacity group-hover:opacity-100'>
-                  <a
-                    href={bookmark.url}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    onClick={(e) => e.stopPropagation()} // 詳細遷移を止める
-                    className='block rounded-full border bg-white p-2 shadow-sm hover:bg-gray-100'
-                  >
-                    <ExternalLink className='h-4 w-4 text-gray-500' />
-                  </a>
                 </div>
               </CardContent>
             </Card>
