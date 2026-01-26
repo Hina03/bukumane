@@ -16,23 +16,22 @@ export async function GET(req: Request) {
     // --- URLパラメータの解析 ---
     const { searchParams } = new URL(req.url);
 
-    // 既存の ?tag=... (単一タグフィルタ)
-    const legacyTag = searchParams.get('tag');
+    // フォルダID (NEW)
+    const folderId = searchParams.get('folder');
 
-    // 新しいパラメータ (AND/OR/NOT検索用)
-    // mode: 'OR' | 'AND' (default)
-    // inc: カンマ区切りの含めるタグ
-    // exc: カンマ区切りの除外するタグ
+    // キーワード検索 (NEW: タイトル・メモ・URLの部分一致)
+    const query = searchParams.get('q');
+
+    // 既存のタグパラメータ
+    const legacyTag = searchParams.get('tag');
     const mode = searchParams.get('mode') === 'OR' ? 'OR' : 'AND';
     const includeParam = searchParams.get('inc');
     const excludeParam = searchParams.get('exc');
 
     // タグリストの配列化
-    // incパラメータがある場合はそれを分解、なければ空配列
     const includeTags = includeParam ? includeParam.split(',').filter(Boolean) : [];
     const excludeTags = excludeParam ? excludeParam.split(',').filter(Boolean) : [];
 
-    // 後方互換性: ?tag=... が指定されていて、incに含まれていない場合は追加する
     if (legacyTag && !includeTags.includes(legacyTag)) {
       includeTags.push(legacyTag);
     }
@@ -41,45 +40,66 @@ export async function GET(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const whereCondition: any = {
       userId: userId,
-      AND: [], // 複数の条件をANDで結合するための配列
+      AND: [],
     };
 
-    // 1. 除外タグ (NOT検索) - 最優先
-    // 指定された除外タグの「いずれか」を持つレコードは除外する
-    // tags: { none: { tag: { name: { in: excludeTags } } } }
+    // 1. フォルダによる絞り込み
+    if (folderId === 'uncategorized') {
+      // ★ 追加: 未分類（フォルダ紐付けが0件）のものを取得
+      whereCondition.AND.push({
+        folders: {
+          none: {}, // 関連レコードが存在しないものを探す
+        },
+      });
+    } else if (folderId) {
+      // 既存: 特定のフォルダIDを持つものを取得
+      whereCondition.AND.push({
+        folders: {
+          some: {
+            folderId: folderId,
+          },
+        },
+      });
+    }
+
+    // 2. キーワード検索 (NEW)
+    if (query) {
+      whereCondition.AND.push({
+        OR: [
+          { title: { contains: query, mode: 'insensitive' } }, // 大文字小文字区別なし
+          { memo: { contains: query, mode: 'insensitive' } },
+          { url: { contains: query, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    // 3. 除外タグ (NOT検索)
     if (excludeTags.length > 0) {
       whereCondition.AND.push({
         tags: {
           none: {
             tag: {
-              name: {
-                in: excludeTags,
-              },
+              name: { in: excludeTags },
             },
           },
         },
       });
     }
 
-    // 2. 検索タグ (AND/OR検索)
+    // 4. 検索タグ (AND/OR検索)
     if (includeTags.length > 0) {
       if (mode === 'OR') {
-        // OR検索: 指定タグの「いずれか」を持つ
-        // tags: { some: { tag: { name: { in: includeTags } } } }
         whereCondition.AND.push({
           tags: {
             some: {
               tag: {
-                name: {
-                  in: includeTags,
-                },
+                name: { in: includeTags },
               },
             },
           },
         });
       } else {
-        // AND検索: 指定タグの「すべて」を持つ
-        // Prismaで多対多のAND検索をする場合、各タグごとに「そのタグを持っているか」の条件を追加する
+        // AND検索
         includeTags.forEach((tagName) => {
           whereCondition.AND.push({
             tags: {
@@ -94,7 +114,6 @@ export async function GET(req: Request) {
       }
     }
 
-    // AND配列が空の場合はクエリから削除（不要なプロパティを残さないため）
     if (whereCondition.AND.length === 0) {
       delete whereCondition.AND;
     }
@@ -103,15 +122,21 @@ export async function GET(req: Request) {
     const pages = await prisma.page.findMany({
       where: whereCondition,
       include: {
-        // 中間テーブルを経由してタグ情報を取得
+        // タグ情報の取得
         tags: {
           include: {
             tag: true,
           },
         },
+        // ★ フォルダ情報の取得を追加 (NEW)
+        folders: {
+          include: {
+            folder: true,
+          },
+        },
       },
       orderBy: {
-        createdAt: 'desc', // 新しい順
+        createdAt: 'desc',
       },
     });
 
@@ -122,10 +147,18 @@ export async function GET(req: Request) {
       url: page.url,
       memo: page.memo,
       createdAt: page.createdAt,
-      // 中間テーブルの構造をフラットなタグ配列に変換
+
+      // タグをフラットに整形
       tags: page.tags.map((pt) => ({
         id: pt.tag.id,
         name: pt.tag.name,
+      })),
+
+      // ★ フォルダをフラットに整形 (NEW)
+      // 中間テーブル(PageOnFolder)から実際のFolder情報を抜き出す
+      folders: page.folders.map((pf) => ({
+        id: pf.folder.id,
+        name: pf.folder.name,
       })),
     }));
 

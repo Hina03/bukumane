@@ -2,14 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, ExternalLink, Plus } from 'lucide-react';
+import { Loader2, ExternalLink, Plus, Pencil, Check, X } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 
 import SearchPanel from '@/components/SearchPanel';
+import FolderGrid from '@/components/FolderGrid';
+import FolderBreadcrumb from '@/components/FolderBreadcrumb';
+import BookmarkActions from '@/components/BookmarkActions';
+import BulkActionBar from '@/components/BulkActionBar';
 
 // 型定義
 type Tag = {
@@ -22,39 +29,165 @@ type Bookmark = {
   title: string;
   url: string;
   tags: Tag[];
+  folders: { id: string; name: string }[];
   createdAt: string;
+};
+
+type Folder = {
+  id: string;
+  name: string;
+  parentId: string | null;
 };
 
 export default function PagesList() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedTag = searchParams.get('tag'); // URLから選択中のタグを取得
+  const currentFolderId = searchParams.get('folder'); // URLから選択中のフォルダを取得
 
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editValue, setEditValue] = useState('');
 
-  // データ取得
-  useEffect(() => {
-    const fetchBookmarks = async () => {
-      setIsLoading(true);
-      try {
-        // タグが選択されていればクエリパラメータを付与
-        const query = searchParams.toString();
-        const res = await fetch(`/api/pages?${query}`);
+  const currentFolder = folders.find((f) => f.id === currentFolderId);
 
-        if (res.ok) {
-          const data = await res.json();
-          setBookmarks(data);
-        }
-      } catch (error) {
-        console.error('ブックマークの取得に失敗しました', error);
-      } finally {
-        setIsLoading(false);
+  let displayTitle = 'すべて';
+  if (currentFolderId === 'uncategorized') {
+    displayTitle = '未分類';
+  } else if (currentFolder) {
+    displayTitle = currentFolder.name;
+  }
+
+  // フォルダ名変更の実行関数
+  const handleRenameFolder = async () => {
+    if (!currentFolderId || editValue === currentFolder?.name || !editValue.trim()) {
+      setIsEditingTitle(false);
+      return;
+    }
+
+    const res = await fetch(`/api/folders/${currentFolderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: editValue }),
+    });
+
+    if (res.ok) {
+      toast.success('フォルダ名を変更しました');
+      setIsEditingTitle(false);
+      fetchData(); // フォルダ一覧を再取得
+    } else {
+      toast.error('変更に失敗しました');
+    }
+  };
+
+  // 選択の切り替え
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+  };
+
+  // 一括移動の実行
+  const handleBulkMove = async (folderId: string) => {
+    const res = await fetch('/api/pages/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ ids: selectedIds, action: 'move', folderId }),
+    });
+    if (res.ok) {
+      setIsSelectMode(false);
+      setSelectedIds([]);
+      fetchData(); // 再取得
+    }
+  };
+
+  // 一括削除の実行
+  const handleBulkDelete = async () => {
+    if (!confirm(`${selectedIds.length}件のブックマークを削除しますか？`)) return;
+    const res = await fetch('/api/pages/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ ids: selectedIds, action: 'delete' }),
+    });
+    if (res.ok) {
+      setIsSelectMode(false);
+      setSelectedIds([]);
+      fetchData();
+    }
+  };
+
+  // フォルダとブックマークの両方を取得
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const query = searchParams.toString();
+      const [pagesRes, foldersRes] = await Promise.all([
+        fetch(`/api/pages?${query}`),
+        fetch('/api/folders'), // フォルダは常に全件（フラットに）取得
+      ]);
+
+      if (pagesRes.ok) setBookmarks(await pagesRes.json());
+      if (foldersRes.ok) {
+        const fetchedFolders = await foldersRes.json();
+
+        // ★ ここで「未分類」フォルダを先頭に追加する
+        // 仮想的なID 'uncategorized' を付与
+        const uncategorizedFolder: Folder = {
+          id: 'uncategorized',
+          name: '未分類',
+          parentId: null, // ルートに表示するためnull
+        };
+
+        // 配列の先頭に結合
+        setFolders([uncategorizedFolder, ...fetchedFolders]);
       }
-    };
+    } catch (error) {
+      console.error('データの取得に失敗しました', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    fetchBookmarks();
-  }, [searchParams]); // searchParamsが変わるたびに再取得
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // フォルダクリック時のURL更新
+  const handleFolderClick = (id: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (id) {
+      params.set('folder', id);
+    } else {
+      params.delete('folder');
+    }
+    router.push(`/pages?${params.toString()}`);
+  };
+
+  // ドラッグ＆ドロップ時の移動処理（Undo機能付き）
+  const handleDropBookmark = async (bookmarkId: string, folderId: string, folderName: string) => {
+    const res = await fetch(`/api/pages/${bookmarkId}/folders`, {
+      method: 'POST',
+      body: JSON.stringify({ folderId }),
+    });
+
+    if (res.ok) {
+      fetchData(); // リスト更新
+
+      toast(`「${folderName}」に追加しました`, {
+        action: {
+          label: '元に戻す',
+          onClick: async () => {
+            await fetch(`/api/pages/${bookmarkId}/folders?folderId=${folderId}`, {
+              method: 'DELETE',
+            });
+            fetchData();
+            toast.success('元に戻しました');
+          },
+        },
+      });
+    }
+  };
 
   // タグクリック時の処理
   const handleTagClick = (e: React.MouseEvent, tagName: string) => {
@@ -81,10 +214,80 @@ export default function PagesList() {
     <div className='container mx-auto px-4 py-8'>
       {/* ヘッダーエリア */}
       <div className='mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center'>
-        <h1 className='text-3xl font-bold'>ページ一覧</h1>
+        <div className='group flex items-center gap-2'>
+          {isEditingTitle ? (
+            // 編集モード
+            <div className='flex items-center gap-2'>
+              <Input
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className='h-10 w-64 text-2xl font-bold'
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRenameFolder();
+                  if (e.key === 'Escape') setIsEditingTitle(false);
+                }}
+              />
+              <Button size='icon' variant='ghost' onClick={handleRenameFolder}>
+                <Check className='h-5 w-5 text-green-600' />
+              </Button>
+              <Button size='icon' variant='ghost' onClick={() => setIsEditingTitle(false)}>
+                <X className='h-5 w-5 text-red-600' />
+              </Button>
+            </div>
+          ) : (
+            // 通常表示モード
+            <>
+              <h1 className='text-3xl font-bold'>{displayTitle}</h1>
+
+              {/* 「未分類」でも「すべて」でもない場合のみ編集アイコンを出す */}
+              {currentFolderId && currentFolderId !== 'uncategorized' && (
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  className='opacity-0 transition-opacity group-hover:opacity-100'
+                  onClick={() => {
+                    setEditValue(displayTitle);
+                    setIsEditingTitle(true);
+                  }}
+                >
+                  <Pencil className='h-5 w-5 text-gray-400' />
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <SearchPanel />
+
+      <FolderBreadcrumb
+        currentFolderId={currentFolderId}
+        folders={folders}
+        onNavigate={handleFolderClick}
+      />
+
+      <FolderGrid
+        folders={folders}
+        currentFolderId={currentFolderId}
+        onFolderClick={handleFolderClick}
+        onFolderCreated={fetchData}
+        onDropBookmark={handleDropBookmark}
+      />
+
+      <hr className='my-8 border-slate-100' />
+      <div className='mb-8 flex items-center justify-between'>
+        {/* モード切替ボタン */}
+        <Button
+          variant={isSelectMode ? 'secondary' : 'outline'}
+          onClick={() => {
+            setIsSelectMode(!isSelectMode);
+            setSelectedIds([]);
+          }}
+        >
+          {isSelectMode ? 'キャンセル' : '選択'}
+        </Button>
+      </div>
 
       {/* ローディング表示 */}
       {isLoading ? (
@@ -106,21 +309,66 @@ export default function PagesList() {
           {bookmarks.map((bookmark) => (
             <Card
               key={bookmark.id}
-              className='group relative cursor-pointer transition-shadow duration-200 hover:shadow-lg'
-              onClick={() => router.push(`/pages/${bookmark.id}`)} // 詳細ページへ遷移
+              draggable={!isSelectMode} // 選択モード中はドラッグ不可にする
+              onDragStart={(e) => {
+                e.dataTransfer.setData('bookmarkId', bookmark.id);
+                e.dataTransfer.effectAllowed = 'move';
+                // ドラッグ中の見た目を少し薄くする
+                e.currentTarget.style.opacity = '0.5';
+              }}
+              onDragEnd={(e) => {
+                e.currentTarget.style.opacity = '1';
+              }}
+              className={`group relative transition-all ${
+                selectedIds.includes(bookmark.id) ? 'bg-blue-50/30 ring-2 ring-blue-500' : ''
+              }`}
+              onClick={() =>
+                isSelectMode ? toggleSelect(bookmark.id) : router.push(`/pages/${bookmark.id}`)
+              }
             >
-              <CardHeader className='flex flex-row items-center gap-4 pb-2'>
+              {/* チェックボックス (選択モード時のみ) */}
+              {isSelectMode && (
+                <div className='absolute left-3 top-3 z-20'>
+                  <Checkbox
+                    checked={selectedIds.includes(bookmark.id)}
+                    onCheckedChange={() => toggleSelect(bookmark.id)}
+                  />
+                </div>
+              )}
+              <CardHeader className='relative flex flex-row items-center gap-4 pb-2'>
                 {/* アイコン (Google Favicon API使用) */}
                 <Avatar className='h-10 w-10 border bg-gray-50'>
                   <AvatarImage src={getFaviconUrl(bookmark.url)} alt={bookmark.title} />
                   <AvatarFallback>{bookmark.title.substring(0, 1)}</AvatarFallback>
                 </Avatar>
 
-                <div className='flex-1 overflow-hidden'>
+                <div className='flex-1 overflow-hidden pr-16'>
                   <CardTitle className='truncate text-base' title={bookmark.title}>
                     {bookmark.title}
                   </CardTitle>
                   <p className='truncate text-xs text-muted-foreground'>{bookmark.url}</p>
+                </div>
+                <div
+                  className='absolute right-2 top-2 z-10 flex items-center gap-1'
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* 外部リンクアイコン */}
+                  <a
+                    href={bookmark.url}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='block rounded-full border bg-white p-2 shadow-sm hover:bg-gray-100'
+                    title='サイトを開く'
+                  >
+                    <ExternalLink className='h-4 w-4 text-gray-500' />
+                  </a>
+                  {/* アクションメニュー */}
+                  <BookmarkActions
+                    bookmarkId={bookmark.id}
+                    currentFolderIds={bookmark.folders.map((f) => f.id)}
+                    allFolders={folders} // 親で保持している全フォルダリスト
+                    onRefresh={fetchData}
+                  />
                 </div>
               </CardHeader>
 
@@ -142,24 +390,22 @@ export default function PagesList() {
                     <span className='text-xs text-gray-400'>タグなし</span>
                   )}
                 </div>
-
-                {/* 右上の外部リンクアイコン (おまけ: 直接サイトへ飛ぶ用) */}
-                <div className='absolute right-4 top-4 opacity-0 transition-opacity group-hover:opacity-100'>
-                  <a
-                    href={bookmark.url}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    onClick={(e) => e.stopPropagation()} // 詳細遷移を止める
-                    className='block rounded-full border bg-white p-2 shadow-sm hover:bg-gray-100'
-                  >
-                    <ExternalLink className='h-4 w-4 text-gray-500' />
-                  </a>
-                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+      {/* 一括操作バー */}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        allFolders={folders}
+        onMove={handleBulkMove}
+        onDelete={handleBulkDelete}
+        onCancel={() => {
+          setIsSelectMode(false);
+          setSelectedIds([]);
+        }}
+      />
       <Button
         onClick={() => router.push('/addPage')} // 登録画面のパスを指定
         className='fixed bottom-8 right-8 z-50 h-14 w-14 rounded-full shadow-xl transition-transform hover:scale-105'
