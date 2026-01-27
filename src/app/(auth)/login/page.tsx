@@ -18,7 +18,7 @@ type LoginFormInputs = z.infer<typeof loginSchema>;
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/mypage';
+  const callbackUrl = searchParams.get('callbackUrl') || '/pages';
   const [error, setError] = useState('');
 
   const {
