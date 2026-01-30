@@ -20,6 +20,7 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/pages';
   const [error, setError] = useState('');
+  const urlError = searchParams.get('error');
 
   const {
     register,
@@ -39,9 +40,15 @@ function LoginContent() {
     });
 
     if (res?.error) {
-      setError('メールアドレスまたはパスワードが間違っています');
+      // エラーメッセージの分岐
+      if (res.error === 'email_not_verified') {
+        setError('メール認証が完了していません。届いたメールを確認してください。');
+      } else {
+        setError('メールアドレスまたはパスワードが間違っています');
+      }
     } else {
       router.push(callbackUrl);
+      router.refresh(); // セッション情報を最新にする
     }
   };
 
@@ -49,7 +56,12 @@ function LoginContent() {
     <div className='mx-auto mt-10 max-w-md rounded-lg border p-6 shadow-sm'>
       <h1 className='mb-6 text-center text-2xl font-bold'>ログイン</h1>
 
-      {error && <div className='mb-4 text-center text-red-500'>{error}</div>}
+      {/* URLに直接エラーがある場合、または state にエラーがある場合に表示 */}
+      {(error || urlError === 'email_not_verified') && (
+        <div className='mb-4 rounded border border-red-200 bg-red-50 p-3 text-center text-sm font-medium text-red-500'>
+          {error || 'メール認証が完了していません。届いたメールを確認してください。'}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className='mb-6 space-y-4'>
         <div>

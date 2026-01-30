@@ -69,11 +69,12 @@ model User {
 }
 
 model VerificationToken {
-  identifier String
-  token      String
+  id         String   @id @default(uuid()) // IDを追加
+  email      String   @map("identifier")  // identifierをemailという別名で扱うと直感的
+  token      String   @unique             // token単体で一意にする
   expires    DateTime
 
-  @@unique([identifier, token])
+  @@unique([email, token])
   @@map("verification_tokens")
 }
 

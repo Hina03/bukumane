@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { generateVerificationToken } from '@/lib/token';
+import { sendVerificationEmail } from '@/lib/mail';
 
 // バリデーションスキーマ
 const registerSchema = z.object({
@@ -30,18 +32,18 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // ユーザー作成
-    const user = await prisma.user.create({
+    await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
       },
     });
 
-    // パスワードを除外して返す（セキュリティのため）
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...userWithoutPassword } = user;
+    // トークン生成とメール送信
+    const verificationToken = await generateVerificationToken(email);
+    await sendVerificationEmail(email, verificationToken.token);
 
-    return NextResponse.json(userWithoutPassword);
+    return NextResponse.json({ success: '確認メールを送信しました' });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: '入力内容が不正です' }, { status: 400 });

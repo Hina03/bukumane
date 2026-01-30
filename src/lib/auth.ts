@@ -50,6 +50,24 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
   },
   callbacks: {
+    async signIn({ user, account }) {
+      // 1. GoogleなどのOAuth認証の場合は、メール認証をスキップ（または自動OK）
+      if (account?.provider !== 'credentials') {
+        return true;
+      }
+
+      // 2. メール/パスワード（Credentials）認証の場合
+      const existingUser = await prisma.user.findUnique({
+        where: { id: user.id },
+      });
+
+      // メール認証が完了していない場合はログインを拒否
+      if (!existingUser?.emailVerified) {
+        throw new Error('email_not_verified'); // エラーを投げてログインを阻止
+      }
+
+      return true; // 認証済みならログイン許可
+    },
     async jwt({ token, user, trigger, session }) {
       // 初回: ログイン時（Google / Credentials 共通）
       // user にはDBから取得した User オブジェクトが入る
