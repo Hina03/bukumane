@@ -117,7 +117,12 @@ function LoginContent() {
         </div>
 
         <div>
-          <label className='mb-1 block text-sm font-medium'>パスワード</label>
+          <div className='mb-1 flex items-center justify-between'>
+            <label className='text-sm font-medium'>パスワード</label>
+            <Link href='/forgot-password' className='text-xs text-blue-600 hover:underline'>
+              パスワードを忘れた方はこちら
+            </Link>
+          </div>
           <input {...register('password')} type='password' className='w-full rounded border p-2' />
           {errors.password && <p className='text-sm text-red-500'>{errors.password.message}</p>}
         </div>
