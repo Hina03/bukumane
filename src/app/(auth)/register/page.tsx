@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,6 +17,9 @@ type RegisterFormInputs = z.infer<typeof registerSchema>;
 export default function RegisterPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isResending, setIsResending] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState(''); // 再送用に保存
+  const [countdown, setCountdown] = useState(0); // タイマー用の秒数
 
   const {
     register,
@@ -42,9 +45,39 @@ export default function RegisterPage() {
       }
 
       setSuccess('確認メールを送信しました。メールボックスを確認してください。');
+      setRegisteredEmail(data.email); // メールアドレスを記憶
+      setCountdown(30); // 30秒のカウントダウン開始
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message);
+    }
+  };
+
+  // タイマーのカウントダウン処理
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+  // 再送処理
+  const onResend = async () => {
+    setIsResending(true);
+    try {
+      const res = await fetch('/api/auth/resend', {
+        method: 'POST',
+        body: JSON.stringify({ email: registeredEmail }),
+      });
+      if (res.ok) {
+        setSuccess('新しい確認メールを再送しました。');
+        setCountdown(30); // 再送後、さらに30秒待機させる
+      }
+    } catch {
+      setError('再送中にエラーが発生しました');
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -53,11 +86,25 @@ export default function RegisterPage() {
       <h1 className='mb-6 text-center text-2xl font-bold'>新規登録</h1>
 
       {success ? (
-        <div className='text-center'>
-          <div className='mb-4 font-medium text-green-600'>{success}</div>
-          <p className='text-sm text-gray-500'>
-            届かない場合は迷惑メールフォルダもご確認ください。
-          </p>
+        <div className='space-y-4 text-center'>
+          <div className='rounded-md border border-green-100 bg-green-50 p-4'>
+            <p className='font-medium text-green-700'>{success}</p>
+          </div>
+
+          <div className='text-sm text-gray-500'>
+            <p> 届かない場合は迷惑メールフォルダもご確認ください。</p>
+            {countdown > 0 ? (
+              <p>あと {countdown} 秒後にメールを再送できます。</p>
+            ) : (
+              <button
+                onClick={onResend}
+                disabled={isResending}
+                className='font-bold text-blue-600 hover:underline disabled:opacity-50'
+              >
+                {isResending ? '送信中...' : '確認メールを再送する'}
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <>

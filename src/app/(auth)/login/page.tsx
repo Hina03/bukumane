@@ -21,6 +21,9 @@ function LoginContent() {
   const callbackUrl = searchParams.get('callbackUrl') || '/pages';
   const [error, setError] = useState('');
   const urlError = searchParams.get('error');
+  const [isResending, setIsResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
+  const [emailForResend, setEmailForResend] = useState(''); // 再送用にメアドを保持
 
   const {
     register,
@@ -32,6 +35,9 @@ function LoginContent() {
 
   const onSubmit = async (data: LoginFormInputs) => {
     setError('');
+    setResendMessage('');
+    setEmailForResend(data.email); // 入力されたメアドを保存
+
     const res = await signIn('credentials', {
       redirect: false,
       email: data.email,
@@ -52,6 +58,28 @@ function LoginContent() {
     }
   };
 
+  // 再送処理の関数
+  const onResend = async () => {
+    setIsResending(true);
+    setResendMessage('');
+    try {
+      const res = await fetch('/api/auth/resend', {
+        method: 'POST',
+        body: JSON.stringify({ email: emailForResend }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResendMessage('新しい確認メールを送信しました。ボックスを確認してください。');
+      } else {
+        setError(data.error || '再送に失敗しました');
+      }
+    } catch {
+      setError('エラーが発生しました');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <div className='mx-auto mt-10 max-w-md rounded-lg border p-6 shadow-sm'>
       <h1 className='mb-6 text-center text-2xl font-bold'>ログイン</h1>
@@ -60,6 +88,24 @@ function LoginContent() {
       {(error || urlError === 'email_not_verified') && (
         <div className='mb-4 rounded border border-red-200 bg-red-50 p-3 text-center text-sm font-medium text-red-500'>
           {error || 'メール認証が完了していません。届いたメールを確認してください。'}
+
+          {/* 未認証エラーの時だけ再送ボタンを出す */}
+          {error.includes('メール認証') && (
+            <button
+              onClick={onResend}
+              disabled={isResending}
+              className='mt-2 block w-full text-xs font-bold underline hover:text-red-700'
+            >
+              {isResending ? '送信中...' : '確認メールを再送する'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 再送成功メッセージ */}
+      {resendMessage && (
+        <div className='mb-4 rounded border border-green-200 bg-green-50 p-3 text-center text-sm font-medium text-green-600'>
+          {resendMessage}
         </div>
       )}
 
