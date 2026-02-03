@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-
+import { Eye, EyeOff } from 'lucide-react';
 const loginSchema = z.object({
   email: z.email('メールアドレスを入力してください'),
   password: z.string().min(1, 'パスワードを入力してください'),
@@ -24,6 +24,7 @@ function LoginContent() {
   const [isResending, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const [emailForResend, setEmailForResend] = useState(''); // 再送用にメアドを保持
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -80,6 +81,10 @@ function LoginContent() {
     }
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   return (
     <div className='mx-auto mt-10 max-w-md rounded-lg border p-6 shadow-sm'>
       <h1 className='mb-6 text-center text-2xl font-bold'>ログイン</h1>
@@ -123,7 +128,27 @@ function LoginContent() {
               パスワードを忘れた方はこちら
             </Link>
           </div>
-          <input {...register('password')} type='password' className='w-full rounded border p-2' />
+          <div className='relative'>
+            <input
+              {...register('password')} // react-hook-formを使っている場合
+              type={showPassword ? 'text' : 'password'}
+              className='w-full rounded border p-2 pr-10' // 右側にアイコン用の余白(pr-10)を作る
+              placeholder='パスワードを入力'
+            />
+
+            {/* アイコンボタンをinputの上に重ねて配置 */}
+            <button
+              type='button' // form送信を防ぐために明示的にbuttonタイプを指定
+              onClick={togglePasswordVisibility}
+              className='absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600'
+            >
+              {showPassword ? (
+                <EyeOff className='h-5 w-5' /> // 表示中のときは「非表示アイコン」
+              ) : (
+                <Eye className='h-5 w-5' /> // 非表示のときは「表示アイコン」
+              )}
+            </button>
+          </div>
           {errors.password && <p className='text-sm text-red-500'>{errors.password.message}</p>}
         </div>
 
