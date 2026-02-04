@@ -7,7 +7,6 @@ import { z } from 'zod';
 // 更新用バリデーション
 const updateSchema = z.object({
   name: z.string().min(1, '名前を入力してください'),
-  email: z.email('正しいメールアドレスを入力してください'),
 });
 
 // GET: ユーザー情報（ブックマーク数含む）の取得
@@ -34,8 +33,6 @@ export async function GET() {
 
     return NextResponse.json({
       name: user.name,
-      email: user.email,
-      image: user.image,
       bookmarkCount: user._count.pages,
     });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -54,11 +51,11 @@ export async function PUT(req: Request) {
 
   try {
     const body = await req.json();
-    const { name, email } = updateSchema.parse(body);
+    const { name } = updateSchema.parse(body);
 
     const updatedUser = await prisma.user.update({
       where: { email: session.user.email },
-      data: { name, email },
+      data: { name },
     });
 
     return NextResponse.json(updatedUser);
