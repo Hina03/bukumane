@@ -91,17 +91,6 @@ export default function MyPage() {
     }
   };
 
-  // アイコン画像選択時の処理（今回はログ出力のみ。実際はSupabase Storage等へアップロード）
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      alert(
-        `画像「${file.name}」が選択されました。\n※実際のアップロード処理は別途Storage実装が必要です。`
-      );
-      // TODO: ここでSupabase Storage等に画像をアップロードし、URLを取得してDBを更新する処理を書く
-    }
-  };
-
   if (isLoading) {
     return (
       <div className='mt-10 flex justify-center'>
@@ -118,35 +107,6 @@ export default function MyPage() {
         </CardHeader>
         <CardContent>
           <div className='flex flex-col items-center gap-6'>
-            {/* --- アイコンセクション --- */}
-            <div className='group relative'>
-              <Avatar className='h-24 w-24 border-2 border-gray-100'>
-                <AvatarImage src={session?.user?.image || ''} alt='User Icon' />
-                <AvatarFallback className='bg-gray-200'>
-                  <UserIcon className='h-12 w-12 text-gray-400' />
-                </AvatarFallback>
-              </Avatar>
-
-              {/* カメラアイコンボタン */}
-              <button
-                type='button'
-                onClick={() => fileInputRef.current?.click()}
-                className='absolute bottom-0 right-0 rounded-full bg-primary p-2 text-white shadow-lg transition-colors hover:bg-primary/90'
-                title='アイコンを変更'
-              >
-                <Camera className='h-4 w-4' />
-              </button>
-
-              {/* 非表示のファイル入力 */}
-              <input
-                type='file'
-                ref={fileInputRef}
-                className='hidden'
-                accept='image/*'
-                onChange={handleImageChange}
-              />
-            </div>
-
             {/* --- 総ブックマーク数 --- */}
             <div className='text-center'>
               <p className='text-sm text-muted-foreground'>総ブックマーク数</p>
