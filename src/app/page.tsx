@@ -32,10 +32,7 @@ export default async function Home() {
         </p>
         <div className='flex gap-4'>
           <Button size='lg' asChild>
-            <Link href='/register'>新規登録</Link>
-          </Button>
-          <Button size='lg' variant='outline' asChild>
-            <Link href='/login'>ログイン</Link>
+            <Link href='/login'>新規登録 / ログイン</Link>
           </Button>
         </div>
       </section>
@@ -83,7 +80,7 @@ export default async function Home() {
       <section className='bg-slate-900 px-4 py-20 text-center text-white'>
         <h2 className='mb-6 text-3xl font-bold'>あなたの情報整理のストレスを解消します。</h2>
         <Button size='lg' variant='secondary' asChild className='px-8 text-lg'>
-          <Link href='/register'>今すぐアカウント作成</Link>
+          <Link href='/login'>今すぐ始める</Link>
         </Button>
       </section>
 

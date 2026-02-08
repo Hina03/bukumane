@@ -52,8 +52,7 @@ model User {
   name          String?
   email         String?   @unique
   emailVerified DateTime? @map("email_verified")
-  image         String? 
-  password      String?   // Credentials認証用
+  image         String?
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -66,15 +65,6 @@ model User {
   tags          Tag[]
 
   @@map("users")
-}
-
-model VerificationToken {
-  identifier String
-  token      String
-  expires    DateTime
-
-  @@unique([identifier, token])
-  @@map("verification_tokens")
 }
 
 // ------------------------------------------------------
