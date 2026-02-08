@@ -68,26 +68,6 @@ model User {
   @@map("users")
 }
 
-model VerificationToken {
-  id         String   @id @default(uuid()) // IDを追加
-  email      String   @map("identifier")  // identifierをemailという別名で扱うと直感的
-  token      String   @unique             // token単体で一意にする
-  expires    DateTime
-
-  @@unique([email, token])
-  @@map("verification_tokens")
-}
-
-model PasswordResetToken {
-  id      String   @id @default(uuid())
-  email   String
-  token   String   @unique
-  expires DateTime
-
-  @@unique([email, token])
-  @@map("password_reset_tokens")
-}
-
 // ------------------------------------------------------
 // Bookmark App Models
 // ------------------------------------------------------
