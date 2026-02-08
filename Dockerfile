@@ -8,6 +8,8 @@ WORKDIR /app
 # package.json / lock ファイルのみコピー（キャッシュ効率UP）
 COPY package*.json ./
 
+COPY prisma ./prisma/
+
 # devDependencies も必要 → build に必要
 RUN npm install
 
@@ -16,7 +18,7 @@ COPY . .
 
 # Prisma Client を生成
 # ビルド用にダミーの環境変数をセットして実行
-RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
+# RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 
 # Next.js をビルド
 RUN npm run build
