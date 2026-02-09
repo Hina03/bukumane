@@ -28,31 +28,60 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '認証されていません' }, { status: 401 });
-    }
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const folderId = params.id;
 
-    // 他人のフォルダを消せないように userId をチェック
+    // 1. 削除対象の情報を取得（移動先を特定するため）
     const folder = await prisma.folder.findUnique({
       where: { id: folderId },
+      select: { id: true, userId: true, parentId: true, name: true },
     });
 
     if (!folder || folder.userId !== session.user.id) {
-      return NextResponse.json({ error: '削除権限がありません' }, { status: 403 });
+      return NextResponse.json({ error: '権限がありません' }, { status: 403 });
     }
 
-    // 削除実行
-    // Prismaのスキーマで Cascade が設定されているため、
-    // PageOnFolder（中間テーブル）の紐付けも自動で消えます。
-    await prisma.folder.delete({
-      where: { id: folderId },
+    // 2. トランザクションで「移動」と「削除」を完結させる
+    await prisma.$transaction(async (tx) => {
+      const parentId = folder.parentId;
+
+      // (a) 子フォルダを親へ移動
+      await tx.folder.updateMany({
+        where: { parentId: folderId },
+        data: { parentId: parentId },
+      });
+
+      // (b) ページを親へ移動
+      if (parentId) {
+        // 親がいる場合：PageOnFolder の folderId を書き換え
+        // すでに親に同じページがある場合は重複エラーになるので、
+        // 一旦取得して、重複しないものだけ update するか、
+        // 以下の「既存を消して新規作成」が確実です。
+        const pages = await tx.pageOnFolder.findMany({ where: { folderId } });
+
+        if (pages.length > 0) {
+          await tx.pageOnFolder.createMany({
+            data: pages.map((p) => ({ pageId: p.pageId, folderId: parentId })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      // (c) 元のフォルダを削除
+      // Cascade設定により、古い PageOnFolder の紐付けは自動で消えます
+      await tx.folder.delete({
+        where: { id: folderId },
+      });
     });
 
-    return NextResponse.json({ message: '削除しました' });
+    // フロントエンドのトースト表示用に、元の情報を返してあげる
+    return NextResponse.json({
+      message: 'フォルダを削除しました。中身を移動しました。',
+      deletedFolder: folder,
+    });
   } catch (error) {
-    console.error('Folder DELETE Error:', error);
+    console.error(error);
     return NextResponse.json({ error: '削除に失敗しました' }, { status: 500 });
   }
 }

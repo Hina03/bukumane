@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 
 type Folder = {
   id: string;
@@ -69,22 +70,22 @@ export default function FolderGrid({
     }
   };
 
-  const handleDeleteFolder = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // フォルダ移動イベントが発火するのを防ぐ
-    setIsDeleting(true);
-
+  const handleDeleteFolder = async (folder: Folder) => {
     try {
-      const res = await fetch(`/api/folders/${id}`, {
+      const res = await fetch(`/api/folders/${folder.id}`, {
         method: 'DELETE',
       });
 
       if (res.ok) {
-        onFolderCreated(); // データの再取得
+        onFolderCreated(); // 再読み込み
+
+        // Sonnerで通知を出す
+        toast(`フォルダ「${folder.name}」を削除しました`, {
+          description: '中身は一つ上の階層へ移動しました。',
+        });
       }
-    } catch (error) {
-      console.error('削除失敗', error);
-    } finally {
-      setIsDeleting(false);
+    } catch {
+      toast.error('削除に失敗しました');
     }
   };
 
@@ -184,9 +185,9 @@ export default function FolderGrid({
                       </AlertDialogTitle>
                       <AlertDialogDescription>
                         「{folder.name}
-                        」を削除します。このフォルダ内のサブフォルダもすべて削除されます。
+                        」を削除します。このフォルダ内のサブフォルダは親フォルダに移動します。
                         <br />
-                        ※中のブックマーク自体は削除されず、「未分類」となります。
+                        ※中のブックマーク自体は削除されません。
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -196,7 +197,7 @@ export default function FolderGrid({
                       <AlertDialogAction
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteFolder(e, folder.id);
+                          handleDeleteFolder(folder);
                         }}
                         className='bg-red-500 hover:bg-red-600'
                       >
