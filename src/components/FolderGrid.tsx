@@ -37,7 +37,7 @@ interface FolderGridProps {
   currentFolderId: string | null;
   onFolderClick: (id: string) => void;
   onFolderCreated: () => void;
-  onDropBookmark: (bookmarkId: string, folderId: string, folderName: string) => void;
+  onDropBookmark: (bookmarkId: string | string[], folderId: string, folderName: string) => void;
 }
 
 export default function FolderGrid({
@@ -48,8 +48,6 @@ export default function FolderGrid({
   onDropBookmark,
 }: FolderGridProps) {
   const [newFolderName, setNewFolderName] = useState('');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // 現在の階層にあるフォルダのみをフィルタリング
@@ -142,6 +140,21 @@ export default function FolderGrid({
                   : (e) => {
                       e.preventDefault();
                       e.currentTarget.classList.remove('bg-blue-100', 'border-blue-500');
+
+                      // ★ バルクデータの取得を優先
+                      const bulkData = e.dataTransfer.getData('bulkBookmarkIds');
+                      if (bulkData) {
+                        try {
+                          const ids = JSON.parse(bulkData);
+                          if (Array.isArray(ids)) {
+                            onDropBookmark(ids, folder.id, folder.name);
+                            return; // バルク処理が終われば終了
+                          }
+                        } catch (err) {
+                          console.error('Failed to parse bulk data:', err);
+                        }
+                      }
+
                       const bookmarkId = e.dataTransfer.getData('bookmarkId');
                       if (bookmarkId) {
                         onDropBookmark(bookmarkId, folder.id, folder.name);
