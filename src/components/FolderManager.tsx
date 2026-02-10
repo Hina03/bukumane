@@ -64,7 +64,7 @@ export default function FolderManager() {
   const saveEdit = async () => {
     if (!editingName.trim()) return;
     const res = await fetch(`/api/folders/${editingId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify({ name: editingName }),
     });
     if (res.ok) {
