@@ -50,11 +50,16 @@ export default function BulkActionBar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end' className='w-48'>
-              {allFolders.map((folder) => (
-                <DropdownMenuItem key={folder.id} onClick={() => onMove(folder.id)}>
-                  {folder.name}
-                </DropdownMenuItem>
-              ))}
+              {allFolders
+                .filter((folder) => folder.id !== 'uncategorized')
+                .map((folder) => (
+                  <DropdownMenuItem key={folder.id} onClick={() => onMove(folder.id)}>
+                    {folder.name}
+                  </DropdownMenuItem>
+                ))}
+              {allFolders.filter((f) => f.id !== 'uncategorized').length === 0 && (
+                <div className='p-2 text-xs text-muted-foreground'>フォルダがありません</div>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>

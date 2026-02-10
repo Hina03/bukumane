@@ -81,24 +81,26 @@ export default function BookmarkActions({
             <span>フォルダに追加/解除</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className='max-h-60 overflow-y-auto'>
-            {allFolders.map((folder) => {
-              const isSelected = currentFolderIds.includes(folder.id);
-              return (
-                <DropdownMenuItem
-                  key={folder.id}
-                  onClick={() => toggleFolder(folder.id, isSelected)}
-                >
-                  <div className='flex w-full items-center justify-between'>
-                    <span className='flex items-center gap-2'>
-                      <Folder className='h-3 w-3 text-blue-500' />
-                      {folder.name}
-                    </span>
-                    {isSelected && <Check className='h-4 w-4 text-green-500' />}
-                  </div>
-                </DropdownMenuItem>
-              );
-            })}
-            {allFolders.length === 0 && (
+            {allFolders
+              .filter((folder) => folder.id !== 'uncategorized')
+              .map((folder) => {
+                const isSelected = currentFolderIds.includes(folder.id);
+                return (
+                  <DropdownMenuItem
+                    key={folder.id}
+                    onClick={() => toggleFolder(folder.id, isSelected)}
+                  >
+                    <div className='flex w-full items-center justify-between'>
+                      <span className='flex items-center gap-2'>
+                        <Folder className='h-3 w-3 text-blue-500' />
+                        {folder.name}
+                      </span>
+                      {isSelected && <Check className='h-4 w-4 text-green-500' />}
+                    </div>
+                  </DropdownMenuItem>
+                );
+              })}
+            {allFolders.filter((f) => f.id !== 'uncategorized').length === 0 && (
               <div className='p-2 text-xs text-muted-foreground'>フォルダがありません</div>
             )}
           </DropdownMenuSubContent>
