@@ -1,6 +1,6 @@
 'use client';
 
-import { FolderInput, Trash2, X, CheckCircle2, Tag as TagIcon } from 'lucide-react';
+import { FolderInput, Trash2, X, CheckCircle2, Tag as TagIcon, FolderMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -16,7 +16,9 @@ type Props = {
   onMove: (folderId: string) => void;
   onTag: (tagId: string) => void;
   onDelete: () => void;
+  onRemoveFromFolder?: () => void;
   onCancel: () => void;
+  activeFolderId?: string | null;
 };
 
 export default function BulkActionBar({
@@ -26,9 +28,13 @@ export default function BulkActionBar({
   onMove,
   onTag,
   onDelete,
+  onRemoveFromFolder,
   onCancel,
+  activeFolderId,
 }: Props) {
   if (selectedCount === 0) return null;
+
+  const isNormalFolder = activeFolderId && activeFolderId !== 'uncategorized';
 
   return (
     <div className='fixed bottom-8 left-1/2 z-[100] -translate-x-1/2 animate-in slide-in-from-bottom-10'>
@@ -82,6 +88,17 @@ export default function BulkActionBar({
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* ★ このフォルダから外すボタン (条件付き) */}
+          {isNormalFolder && (
+            <Button
+              variant='ghost'
+              size='sm'
+              onClick={onRemoveFromFolder}
+              className='gap-2 text-orange-400 hover:bg-orange-950 hover:text-orange-400'
+            >
+              <FolderMinus className='h-4 w-4' /> フォルダから削除
+            </Button>
+          )}
           <Button
             variant='ghost'
             size='sm'

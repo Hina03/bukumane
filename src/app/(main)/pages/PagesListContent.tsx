@@ -140,6 +140,32 @@ export default function PagesList() {
     }
   };
 
+  const handleBulkRemoveFromFolder = async () => {
+    if (!currentFolderId || selectedIds.length === 0) return;
+
+    const confirmMsg = `${selectedIds.length}件のブックマークをこのフォルダから削除しますか？\n(ブックマーク自体は削除されません)`;
+    if (!confirm(confirmMsg)) return;
+
+    const res = await fetch('/api/pages/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ids: selectedIds,
+        action: 'unfolder',
+        folderId: currentFolderId,
+      }),
+    });
+
+    if (res.ok) {
+      toast.success(`${selectedIds.length}件を解除しました`);
+      setIsSelectMode(false);
+      setSelectedIds([]);
+      fetchData(); // データを再取得
+    } else {
+      toast.error('解除に失敗しました');
+    }
+  };
+
   // フォルダとブックマークの両方を取得
   const fetchData = async () => {
     setIsLoading(true);
@@ -425,6 +451,7 @@ export default function PagesList() {
                       currentFolderIds={bookmark.folders.map((f) => f.id)}
                       allFolders={folders} // 親で保持している全フォルダリスト
                       onRefresh={fetchData}
+                      activeFolderId={currentFolderId}
                     />
                   </div>
                 </CardHeader>
@@ -461,10 +488,12 @@ export default function PagesList() {
         onMove={handleBulkMoveButton}
         onDelete={handleBulkDelete}
         onTag={handleBulkTag}
+        onRemoveFromFolder={handleBulkRemoveFromFolder}
         onCancel={() => {
           setIsSelectMode(false);
           setSelectedIds([]);
         }}
+        activeFolderId={currentFolderId}
       />
       <Button
         onClick={() => router.push('/addPage')} // 登録画面のパスを指定

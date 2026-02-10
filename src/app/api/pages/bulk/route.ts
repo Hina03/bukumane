@@ -20,8 +20,17 @@ export async function POST(req: Request) {
         data,
         skipDuplicates: true, // 既に所属している場合はスキップ
       });
+    } else if (action === 'unfolder' && folderId) {
+      // 一括フォルダ解除
+      // 中間テーブルから「対象のページID」かつ「現在のフォルダID」の紐付けを削除
+      await prisma.pageOnFolder.deleteMany({
+        where: {
+          pageId: { in: ids },
+          folderId: folderId,
+        },
+      });
     } else if (action === 'tag' && tagId) {
-      // ★ 一括タグ追加
+      // 一括タグ追加
       const data = ids.map((id) => ({
         pageId: id,
         tagId: tagId,
