@@ -483,20 +483,22 @@ export default function PagesList() {
         </div>
       )}
       {/* 一括操作バー */}
-      <BulkActionBar
-        selectedCount={selectedIds.length}
-        allFolders={folders}
-        allTags={allTags}
-        onMove={handleBulkMoveButton}
-        onDelete={handleBulkDelete}
-        onTag={handleBulkTag}
-        onRemoveFromFolder={handleBulkRemoveFromFolder}
-        onCancel={() => {
-          setIsSelectMode(false);
-          setSelectedIds([]);
-        }}
-        activeFolderId={currentFolderId}
-      />
+      {isSelectMode && (
+        <BulkActionBar
+          selectedCount={selectedIds.length}
+          allFolders={folders}
+          allTags={allTags}
+          onMove={handleBulkMoveButton}
+          onDelete={handleBulkDelete}
+          onTag={handleBulkTag}
+          onRemoveFromFolder={handleBulkRemoveFromFolder}
+          onCancel={() => {
+            setIsSelectMode(false);
+            setSelectedIds([]);
+          }}
+          activeFolderId={currentFolderId}
+        />
+      )}
       <Button
         onClick={() => router.push('/addPage')} // 登録画面のパスを指定
         className='fixed bottom-8 right-8 z-50 h-14 w-14 rounded-full shadow-xl transition-transform hover:scale-105'
