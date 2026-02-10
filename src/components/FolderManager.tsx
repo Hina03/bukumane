@@ -6,7 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 
-type FolderType = { id: string; name: string; _count?: { pages: number } };
+type FolderType = {
+  id: string;
+  name: string;
+  _count?: { pages: number };
+  parentId?: string | null;
+};
 
 export default function FolderManager() {
   const [folders, setFolders] = useState<FolderType[]>([]);
@@ -74,6 +79,18 @@ export default function FolderManager() {
     }
   };
 
+  const getFolderPath = (folder: FolderType, allFolders: FolderType[]): string => {
+    if (!folder.parentId) return folder.name;
+    const parent = allFolders.find((f) => f.id === folder.parentId);
+    if (!parent) return folder.name;
+    // 親を辿って連結（再帰）
+    return `${getFolderPath(parent, allFolders)} / ${folder.name}`;
+  };
+
+  const sortedFolders = [...folders]
+    .map((f) => ({ ...f, fullPath: getFolderPath(f, folders) })) // 各フォルダにパスを付与
+    .sort((a, b) => a.fullPath.localeCompare(b.fullPath, 'ja')); // パス名で昇順ソート
+
   if (isLoading) return <Loader2 className='mx-auto animate-spin' />;
 
   return (
@@ -94,59 +111,80 @@ export default function FolderManager() {
 
       {/* 一覧 */}
       <div className='space-y-2'>
-        {folders.map((folder) => (
-          <div
-            key={folder.id}
-            className='flex items-center justify-between rounded border bg-white p-2'
-          >
-            {editingId === folder.id ? (
-              <div className='flex w-full gap-2'>
-                <Input
-                  value={editingName}
-                  onChange={(e) => setEditingName(e.target.value)}
-                  autoFocus
-                  onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
-                />
-                <Button size='icon' onClick={saveEdit}>
-                  <Save className='h-4 w-4' />
-                </Button>
-                <Button size='icon' variant='ghost' onClick={() => setEditingId(null)}>
-                  <X className='h-4 w-4' />
-                </Button>
-              </div>
-            ) : (
-              <>
-                <div className='flex items-center gap-2'>
-                  <Folder className='h-4 w-4 fill-blue-500/10 text-blue-500' />
-                  <span className='text-sm font-medium'>{folder.name}</span>
-                  <span className='rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500'>
-                    {folder._count?.pages || 0}
-                  </span>
-                </div>
-                <div className='flex gap-1'>
-                  <Button
-                    size='icon'
-                    variant='ghost'
-                    onClick={() => {
-                      setEditingId(folder.id);
-                      setEditingName(folder.name);
-                    }}
-                  >
-                    <Pencil className='h-4 w-4 text-muted-foreground' />
+        {sortedFolders.map((folder) => {
+          const pathParts = folder.fullPath.split(' / ');
+
+          return (
+            <div
+              key={folder.id}
+              className='flex items-center justify-between rounded border bg-white p-2'
+            >
+              {editingId === folder.id ? (
+                <div className='flex w-full gap-2'>
+                  <Input
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                  />
+                  <Button size='icon' onClick={saveEdit}>
+                    <Save className='h-4 w-4' />
                   </Button>
-                  <Button
-                    size='icon'
-                    variant='ghost'
-                    className='text-red-400 hover:bg-red-50 hover:text-red-600'
-                    onClick={() => handleDelete(folder)}
-                  >
-                    <Trash2 className='h-4 w-4' />
+                  <Button size='icon' variant='ghost' onClick={() => setEditingId(null)}>
+                    <X className='h-4 w-4' />
                   </Button>
                 </div>
-              </>
-            )}
-          </div>
-        ))}
+              ) : (
+                <>
+                  <div className='flex items-center gap-2'>
+                    <Folder className='h-4 w-4 fill-blue-500/10 text-blue-500' />
+                    <span className='truncate text-sm font-medium'>
+                      {pathParts.map((part, i) => (
+                        <span key={i}>
+                          <span
+                            className={
+                              i === pathParts.length - 1
+                                ? 'font-bold text-slate-700'
+                                : 'font-normal text-slate-400'
+                            }
+                          >
+                            {part}
+                          </span>
+                          {i < pathParts.length - 1 && (
+                            <span className='mx-1 text-slate-300'>/</span>
+                          )}
+                        </span>
+                      ))}
+                    </span>
+                    <span className='rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500'>
+                      {folder._count?.pages || 0}
+                    </span>
+                  </div>
+                  <div className='flex gap-1'>
+                    <Button
+                      size='icon'
+                      variant='ghost'
+                      onClick={() => {
+                        setEditingId(folder.id);
+                        setEditingName(folder.name);
+                      }}
+                    >
+                      <Pencil className='h-4 w-4 text-muted-foreground' />
+                    </Button>
+                    <Button
+                      size='icon'
+                      variant='ghost'
+                      className='text-red-400 hover:bg-red-50 hover:text-red-600'
+                      onClick={() => handleDelete(folder)}
+                    >
+                      <Trash2 className='h-4 w-4' />
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
         {folders.length === 0 && (
           <p className='py-4 text-center text-sm text-muted-foreground'>フォルダがありません</p>
         )}
