@@ -1,6 +1,6 @@
 'use client';
 
-import { FolderInput, Trash2, X, CheckCircle2 } from 'lucide-react';
+import { FolderInput, Trash2, X, CheckCircle2, Tag as TagIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,7 +12,9 @@ import {
 type Props = {
   selectedCount: number;
   allFolders: { id: string; name: string }[];
+  allTags: { id: string; name: string }[];
   onMove: (folderId: string) => void;
+  onTag: (tagId: string) => void;
   onDelete: () => void;
   onCancel: () => void;
 };
@@ -20,7 +22,9 @@ type Props = {
 export default function BulkActionBar({
   selectedCount,
   allFolders,
+  allTags,
   onMove,
+  onTag,
   onDelete,
   onCancel,
 }: Props) {
@@ -49,6 +53,25 @@ export default function BulkActionBar({
               {allFolders.map((folder) => (
                 <DropdownMenuItem key={folder.id} onClick={() => onMove(folder.id)}>
                   {folder.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant='ghost'
+                size='sm'
+                className='gap-2 hover:bg-slate-800 hover:text-white'
+              >
+                <TagIcon className='mr-2 h-4 w-4' />
+                タグを付ける
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {allTags.map((tag) => (
+                <DropdownMenuItem key={tag.id} onClick={() => onTag(tag.id)}>
+                  {tag.name}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>

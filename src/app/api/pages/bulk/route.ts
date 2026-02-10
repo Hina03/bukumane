@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { ids, action, folderId } = await req.json();
+    const { ids, action, folderId, tagId } = await req.json();
 
     if (!ids || !Array.isArray(ids))
       return NextResponse.json({ error: 'Invalid IDs' }, { status: 400 });
@@ -19,6 +19,16 @@ export async function POST(req: Request) {
       await prisma.pageOnFolder.createMany({
         data,
         skipDuplicates: true, // 既に所属している場合はスキップ
+      });
+    } else if (action === 'tag' && tagId) {
+      // ★ 一括タグ追加
+      const data = ids.map((id) => ({
+        pageId: id,
+        tagId: tagId,
+      }));
+      await prisma.pageOnTag.createMany({
+        data,
+        skipDuplicates: true, // すでに同じタグが付いている場合はスキップ
       });
     } else if (action === 'delete') {
       // 一括削除

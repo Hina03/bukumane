@@ -47,6 +47,7 @@ export default function PagesList() {
 
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -124,14 +125,29 @@ export default function PagesList() {
     }
   };
 
+  const handleBulkTag = async (tagId: string) => {
+    const res = await fetch('/api/pages/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ ids: selectedIds, action: 'tag', tagId }),
+    });
+
+    if (res.ok) {
+      setIsSelectMode(false);
+      setSelectedIds([]);
+      fetchData();
+      toast.success('タグを一括設定しました');
+    }
+  };
+
   // フォルダとブックマークの両方を取得
   const fetchData = async () => {
     setIsLoading(true);
     try {
       const query = searchParams.toString();
-      const [pagesRes, foldersRes] = await Promise.all([
+      const [pagesRes, foldersRes, tagsRes] = await Promise.all([
         fetch(`/api/pages?${query}`),
         fetch('/api/folders'), // フォルダは常に全件（フラットに）取得
+        fetch('/api/tags'), // 全タグ取得
       ]);
 
       if (pagesRes.ok) setBookmarks(await pagesRes.json());
@@ -149,6 +165,7 @@ export default function PagesList() {
         // 配列の先頭に結合
         setFolders([uncategorizedFolder, ...fetchedFolders]);
       }
+      if (tagsRes.ok) setAllTags(await tagsRes.json());
     } catch (error) {
       console.error('データの取得に失敗しました', error);
     } finally {
@@ -432,8 +449,10 @@ export default function PagesList() {
       <BulkActionBar
         selectedCount={selectedIds.length}
         allFolders={folders}
+        allTags={allTags}
         onMove={handleBulkMoveButton}
         onDelete={handleBulkDelete}
+        onTag={handleBulkTag}
         onCancel={() => {
           setIsSelectMode(false);
           setSelectedIds([]);
