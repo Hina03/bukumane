@@ -1,0 +1,156 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Loader2, Plus, Pencil, Trash2, X, Save, Folder } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
+
+type FolderType = { id: string; name: string; _count?: { pages: number } };
+
+export default function FolderManager() {
+  const [folders, setFolders] = useState<FolderType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [newFolderName, setNewFolderName] = useState('');
+
+  // 編集用ステート
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+
+  // 取得（未分類フォルダは管理対象外としてフィルタリング）
+  useEffect(() => {
+    fetch('/api/folders')
+      .then((res) => res.json())
+      .then((data) => {
+        setFolders(data.filter((f: FolderType) => f.id !== 'uncategorized'));
+      })
+      .catch((e) => console.error(e))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  // 追加
+  const handleAdd = async () => {
+    if (!newFolderName.trim()) return;
+    const res = await fetch('/api/folders', {
+      method: 'POST',
+      body: JSON.stringify({ name: newFolderName }),
+    });
+    if (res.ok) {
+      const newFolder = await res.json();
+      setFolders((prev) => [...prev, newFolder]);
+      setNewFolderName('');
+      toast.success('フォルダを作成しました');
+    }
+  };
+
+  // 編集保存 (API側がPUTに対応している前提。なければ作成が必要)
+  const saveEdit = async () => {
+    if (!editingName.trim()) return;
+    const res = await fetch(`/api/folders/${editingId}`, {
+      method: 'PUT', // 一般的なREST設計に合わせパスパラメータ形式にしています
+      body: JSON.stringify({ name: editingName }),
+    });
+    if (res.ok) {
+      setFolders((prev) => prev.map((f) => (f.id === editingId ? { ...f, name: editingName } : f)));
+      setEditingId(null);
+      toast.success('フォルダ名を更新しました');
+    }
+  };
+
+  // 削除
+  const handleDelete = async (folder: FolderType) => {
+    if (
+      !confirm(
+        `フォルダ「${folder.name}」を削除しますか？\n中のブックマークは上の階層へ移動します。`
+      )
+    )
+      return;
+    const res = await fetch(`/api/folders/${folder.id}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) {
+      setFolders((prev) => prev.filter((f) => f.id !== folder.id));
+      toast.success('フォルダを削除しました');
+    }
+  };
+
+  if (isLoading) return <Loader2 className='mx-auto animate-spin' />;
+
+  return (
+    <div className='space-y-4'>
+      {/* 追加フォーム */}
+      <div className='flex gap-2'>
+        <Input
+          placeholder='新しいフォルダ'
+          value={newFolderName}
+          onChange={(e) => setNewFolderName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+        />
+        <Button onClick={handleAdd} size='sm'>
+          <Plus className='mr-1 h-4 w-4' />
+          追加
+        </Button>
+      </div>
+
+      {/* 一覧 */}
+      <div className='space-y-2'>
+        {folders.map((folder) => (
+          <div
+            key={folder.id}
+            className='flex items-center justify-between rounded border bg-white p-2'
+          >
+            {editingId === folder.id ? (
+              <div className='flex w-full gap-2'>
+                <Input
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                />
+                <Button size='icon' onClick={saveEdit}>
+                  <Save className='h-4 w-4' />
+                </Button>
+                <Button size='icon' variant='ghost' onClick={() => setEditingId(null)}>
+                  <X className='h-4 w-4' />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className='flex items-center gap-2'>
+                  <Folder className='h-4 w-4 fill-blue-500/10 text-blue-500' />
+                  <span className='text-sm font-medium'>{folder.name}</span>
+                  <span className='rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500'>
+                    {folder._count?.pages || 0}
+                  </span>
+                </div>
+                <div className='flex gap-1'>
+                  <Button
+                    size='icon'
+                    variant='ghost'
+                    onClick={() => {
+                      setEditingId(folder.id);
+                      setEditingName(folder.name);
+                    }}
+                  >
+                    <Pencil className='h-4 w-4 text-muted-foreground' />
+                  </Button>
+                  <Button
+                    size='icon'
+                    variant='ghost'
+                    className='text-red-400 hover:bg-red-50 hover:text-red-600'
+                    onClick={() => handleDelete(folder)}
+                  >
+                    <Trash2 className='h-4 w-4' />
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+        {folders.length === 0 && (
+          <p className='py-4 text-center text-sm text-muted-foreground'>フォルダがありません</p>
+        )}
+      </div>
+    </div>
+  );
+}

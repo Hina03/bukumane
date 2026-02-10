@@ -31,7 +31,13 @@ export async function GET() {
   try {
     const tags = await prisma.tag.findMany({
       where: { userId },
-      select: { id: true, name: true }, // IDも取得する
+      select: {
+        id: true,
+        name: true,
+        _count: {
+          select: { pages: true }, // Folderモデルのpagesリレーションの数をカウント
+        },
+      }, // IDも取得する
       orderBy: { name: 'asc' },
     });
     return NextResponse.json(tags);

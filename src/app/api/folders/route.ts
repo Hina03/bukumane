@@ -29,7 +29,9 @@ export async function GET() {
         name: true,
         parentId: true,
         createdAt: true,
-        // 必要であれば子の数などもカウントできますが、まずはシンプルに
+        _count: {
+          select: { pages: true }, // Folderモデルのpagesリレーションの数をカウント
+        },
       },
     });
 

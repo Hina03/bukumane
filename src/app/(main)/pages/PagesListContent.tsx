@@ -37,6 +37,7 @@ type Folder = {
   id: string;
   name: string;
   parentId: string | null;
+  _count?: { pages: number };
 };
 
 export default function PagesList() {
@@ -251,47 +252,54 @@ export default function PagesList() {
     <div className='container mx-auto px-4 py-8'>
       {/* ヘッダーエリア */}
       <div className='mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center'>
-        <div className='group flex items-center gap-2'>
-          {isEditingTitle ? (
-            // 編集モード
-            <div className='flex items-center gap-2'>
-              <Input
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className='h-10 w-64 text-2xl font-bold'
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleRenameFolder();
-                  if (e.key === 'Escape') setIsEditingTitle(false);
-                }}
-              />
-              <Button size='icon' variant='ghost' onClick={handleRenameFolder}>
-                <Check className='h-5 w-5 text-green-600' />
-              </Button>
-              <Button size='icon' variant='ghost' onClick={() => setIsEditingTitle(false)}>
-                <X className='h-5 w-5 text-red-600' />
-              </Button>
-            </div>
-          ) : (
-            // 通常表示モード
-            <>
-              <h1 className='text-3xl font-bold'>{displayTitle}</h1>
-
-              {/* 「未分類」でも「すべて」でもない場合のみ編集アイコンを出す */}
-              {currentFolderId && currentFolderId !== 'uncategorized' && (
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  className='opacity-0 transition-opacity group-hover:opacity-100'
-                  onClick={() => {
-                    setEditValue(displayTitle);
-                    setIsEditingTitle(true);
+        <div className='flex flex-col gap-1'>
+          <div className='group flex items-center gap-2'>
+            {isEditingTitle ? (
+              // 編集モード
+              <div className='flex items-center gap-2'>
+                <Input
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  className='h-10 w-64 text-2xl font-bold'
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleRenameFolder();
+                    if (e.key === 'Escape') setIsEditingTitle(false);
                   }}
-                >
-                  <Pencil className='h-5 w-5 text-gray-400' />
+                />
+                <Button size='icon' variant='ghost' onClick={handleRenameFolder}>
+                  <Check className='h-5 w-5 text-green-600' />
                 </Button>
-              )}
-            </>
+                <Button size='icon' variant='ghost' onClick={() => setIsEditingTitle(false)}>
+                  <X className='h-5 w-5 text-red-600' />
+                </Button>
+              </div>
+            ) : (
+              // 通常表示モード
+              <>
+                <h1 className='text-3xl font-bold'>{displayTitle}</h1>
+
+                {/* 「未分類」でも「すべて」でもない場合のみ編集アイコンを出す */}
+                {currentFolderId && currentFolderId !== 'uncategorized' && (
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    className='opacity-0 transition-opacity group-hover:opacity-100'
+                    onClick={() => {
+                      setEditValue(displayTitle);
+                      setIsEditingTitle(true);
+                    }}
+                  >
+                    <Pencil className='h-5 w-5 text-gray-400' />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+          {displayTitle !== 'すべて' && !isEditingTitle && (
+            <span className='text-sm text-muted-foreground'>
+              全{currentFolder?._count?.pages || 0}件
+            </span>
           )}
         </div>
       </div>

@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, Plus, Pencil, Trash2, X, Save } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, X, Save, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-type Tag = { id: string; name: string };
+type Tag = { id: string; name: string; _count?: { pages: number } };
 
 export default function TagManager() {
   const [tags, setTags] = useState<Tag[]>([]);
@@ -70,12 +70,10 @@ export default function TagManager() {
     }
   };
 
-  if (isLoading) return <Loader2 className='animate-spin' />;
+  if (isLoading) return <Loader2 className='mx-auto animate-spin' />;
 
   return (
     <div className='space-y-4'>
-      <h3 className='text-lg font-bold'>タグ管理</h3>
-
       {/* 追加フォーム */}
       <div className='flex gap-2'>
         <Input
@@ -94,7 +92,7 @@ export default function TagManager() {
         {tags.map((tag) => (
           <div
             key={tag.id}
-            className='flex items-center justify-between rounded border bg-gray-50 p-2'
+            className='flex items-center justify-between rounded border bg-white p-2'
           >
             {editingId === tag.id ? (
               <div className='flex w-full gap-2'>
@@ -108,15 +106,21 @@ export default function TagManager() {
               </div>
             ) : (
               <>
-                <span>{tag.name}</span>
+                <div className='flex items-center gap-2'>
+                  <Tag className='mr-2 h-4 w-4 fill-blue-500/10 text-blue-500' />
+                  <span className='text-sm font-medium'>{tag.name}</span>
+                  <span className='rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500'>
+                    {tag._count?.pages || 0}
+                  </span>
+                </div>
                 <div className='flex gap-1'>
                   <Button size='icon' variant='ghost' onClick={() => startEdit(tag)}>
-                    <Pencil className='h-4 w-4' />
+                    <Pencil className='h-4 w-4 text-muted-foreground' />
                   </Button>
                   <Button
                     size='icon'
                     variant='ghost'
-                    className='text-red-500'
+                    className='text-red-400 hover:bg-red-50 hover:text-red-600'
                     onClick={() => handleDelete(tag.id)}
                   >
                     <Trash2 className='h-4 w-4' />
