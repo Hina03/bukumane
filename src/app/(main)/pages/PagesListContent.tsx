@@ -179,17 +179,19 @@ export default function PagesList() {
 
       if (pagesRes.ok) setBookmarks(await pagesRes.json());
       if (foldersRes.ok) {
-        const fetchedFolders = await foldersRes.json();
+        // ★ API変更対応: オブジェクトから folders と uncategorizedCount を取り出す
+        const data = await foldersRes.json();
+        const fetchedFolders: Folder[] = data.folders || [];
+        const uncategorizedCount: number = data.uncategorizedCount || 0;
 
-        // ★ ここで「未分類」フォルダを先頭に追加する
-        // 仮想的なID 'uncategorized' を付与
+        // ★ 未分類フォルダに件数をセット
         const uncategorizedFolder: Folder = {
           id: 'uncategorized',
           name: '未分類',
-          parentId: null, // ルートに表示するためnull
+          parentId: null,
+          _count: { pages: uncategorizedCount }, // ここにセット
         };
 
-        // 配列の先頭に結合
         setFolders([uncategorizedFolder, ...fetchedFolders]);
       }
       if (tagsRes.ok) setAllTags(await tagsRes.json());

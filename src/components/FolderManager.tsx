@@ -13,6 +13,12 @@ type FolderType = {
   parentId?: string | null;
 };
 
+// APIレスポンスの型定義
+type FoldersResponse = {
+  folders: FolderType[];
+  uncategorizedCount: number;
+};
+
 export default function FolderManager() {
   const [folders, setFolders] = useState<FolderType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,18 +28,24 @@ export default function FolderManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
-  // 取得（未分類フォルダは管理対象外としてフィルタリング）
+  // 取得処理の修正
   useEffect(() => {
     fetch('/api/folders')
       .then((res) => res.json())
-      .then((data) => {
-        setFolders(data.filter((f: FolderType) => f.id !== 'uncategorized'));
+      .then((data: FoldersResponse) => {
+        // data が { folders: [...], uncategorizedCount: ... } なので data.folders を使う
+        const fetchedFolders = data.folders || [];
+        // 管理画面では実体のあるフォルダのみを表示（仮想フォルダ 'uncategorized' は除外）
+        setFolders(fetchedFolders.filter((f) => f.id !== 'uncategorized'));
       })
-      .catch((e) => console.error(e))
+      .catch((e) => {
+        console.error(e);
+        toast.error('フォルダの取得に失敗しました');
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
-  // 追加
+  // 追加 (POSTの戻り値は単体のFolderオブジェクトなのでそのままでOK)
   const handleAdd = async () => {
     if (!newFolderName.trim()) return;
     const res = await fetch('/api/folders', {
@@ -48,11 +60,11 @@ export default function FolderManager() {
     }
   };
 
-  // 編集保存 (API側がPUTに対応している前提。なければ作成が必要)
+  // 編集保存
   const saveEdit = async () => {
     if (!editingName.trim()) return;
     const res = await fetch(`/api/folders/${editingId}`, {
-      method: 'PUT', // 一般的なREST設計に合わせパスパラメータ形式にしています
+      method: 'PUT',
       body: JSON.stringify({ name: editingName }),
     });
     if (res.ok) {
@@ -83,15 +95,19 @@ export default function FolderManager() {
     if (!folder.parentId) return folder.name;
     const parent = allFolders.find((f) => f.id === folder.parentId);
     if (!parent) return folder.name;
-    // 親を辿って連結（再帰）
     return `${getFolderPath(parent, allFolders)} / ${folder.name}`;
   };
 
   const sortedFolders = [...folders]
-    .map((f) => ({ ...f, fullPath: getFolderPath(f, folders) })) // 各フォルダにパスを付与
-    .sort((a, b) => a.fullPath.localeCompare(b.fullPath, 'ja')); // パス名で昇順ソート
+    .map((f) => ({ ...f, fullPath: getFolderPath(f, folders) }))
+    .sort((a, b) => a.fullPath.localeCompare(b.fullPath, 'ja'));
 
-  if (isLoading) return <Loader2 className='mx-auto animate-spin' />;
+  if (isLoading)
+    return (
+      <div className='flex justify-center py-8'>
+        <Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
+      </div>
+    );
 
   return (
     <div className='space-y-4'>

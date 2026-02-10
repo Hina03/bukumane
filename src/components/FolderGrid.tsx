@@ -30,6 +30,7 @@ type Folder = {
   id: string;
   name: string;
   parentId: string | null;
+  _count?: { pages: number };
 };
 
 interface FolderGridProps {
@@ -119,6 +120,7 @@ export default function FolderGrid({
       <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6'>
         {displayedFolders.map((folder) => {
           const isUncategorized = folder.id === 'uncategorized';
+          const count = folder._count?.pages || 0; // 件数取得
 
           return (
             <Card
@@ -177,6 +179,13 @@ export default function FolderGrid({
                 className={`truncate pr-6 text-sm font-medium ${isUncategorized ? 'text-slate-600' : ''}`}
               >
                 {folder.name}
+              </span>
+
+              {/* 件数表示 (右端に配置) */}
+              <span
+                className={`ml-auto text-xs text-slate-400 ${!isUncategorized ? 'mr-5 group-hover:hidden' : ''}`}
+              >
+                {count}
               </span>
 
               {/* 削除ボタン（ホバー時のみ表示） */}
