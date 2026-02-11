@@ -37,6 +37,7 @@ type Folder = {
   id: string;
   name: string;
   parentId: string | null;
+  _count?: { pages: number };
 };
 
 export default function PagesList() {
@@ -47,6 +48,7 @@ export default function PagesList() {
 
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -89,17 +91,25 @@ export default function PagesList() {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
-  // 一括移動の実行
-  const handleBulkMove = async (folderId: string) => {
+  // ids引数を受け取れるように変更し、DnDからも呼べるようにする
+  const executeBulkMove = async (idsToMove: string[], folderId: string) => {
     const res = await fetch('/api/pages/bulk', {
       method: 'POST',
-      body: JSON.stringify({ ids: selectedIds, action: 'move', folderId }),
+      body: JSON.stringify({ ids: idsToMove, action: 'move', folderId }),
     });
     if (res.ok) {
       setIsSelectMode(false);
       setSelectedIds([]);
-      fetchData(); // 再取得
+      fetchData();
+      toast.success(`${idsToMove.length}件を移動しました`);
+    } else {
+      toast.error('移動に失敗しました');
     }
+  };
+
+  // ツールバーボタン用の一括移動ラッパー
+  const handleBulkMoveButton = (folderId: string) => {
+    executeBulkMove(selectedIds, folderId);
   };
 
   // 一括削除の実行
@@ -116,31 +126,75 @@ export default function PagesList() {
     }
   };
 
+  const handleBulkTag = async (tagId: string) => {
+    const res = await fetch('/api/pages/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ ids: selectedIds, action: 'tag', tagId }),
+    });
+
+    if (res.ok) {
+      setIsSelectMode(false);
+      setSelectedIds([]);
+      fetchData();
+      toast.success('タグを一括設定しました');
+    }
+  };
+
+  const handleBulkRemoveFromFolder = async () => {
+    if (!currentFolderId || selectedIds.length === 0) return;
+
+    const confirmMsg = `${selectedIds.length}件のブックマークをこのフォルダから削除しますか？\n(ブックマーク自体は削除されません)`;
+    if (!confirm(confirmMsg)) return;
+
+    const res = await fetch('/api/pages/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ids: selectedIds,
+        action: 'unfolder',
+        folderId: currentFolderId,
+      }),
+    });
+
+    if (res.ok) {
+      toast.success(`${selectedIds.length}件を解除しました`);
+      setIsSelectMode(false);
+      setSelectedIds([]);
+      fetchData(); // データを再取得
+    } else {
+      toast.error('解除に失敗しました');
+    }
+  };
+
   // フォルダとブックマークの両方を取得
   const fetchData = async () => {
     setIsLoading(true);
     try {
       const query = searchParams.toString();
-      const [pagesRes, foldersRes] = await Promise.all([
+      const [pagesRes, foldersRes, tagsRes] = await Promise.all([
         fetch(`/api/pages?${query}`),
         fetch('/api/folders'), // フォルダは常に全件（フラットに）取得
+        fetch('/api/tags'), // 全タグ取得
       ]);
 
       if (pagesRes.ok) setBookmarks(await pagesRes.json());
       if (foldersRes.ok) {
-        const fetchedFolders = await foldersRes.json();
+        // ★ API変更対応: オブジェクトから folders と uncategorizedCount を取り出す
+        const data = await foldersRes.json();
+        const fetchedFolders: Folder[] = data.folders || [];
+        const uncategorizedCount: number = data.uncategorizedCount || 0;
 
-        // ★ ここで「未分類」フォルダを先頭に追加する
-        // 仮想的なID 'uncategorized' を付与
+        // ★ 未分類フォルダに件数をセット
         const uncategorizedFolder: Folder = {
           id: 'uncategorized',
           name: '未分類',
-          parentId: null, // ルートに表示するためnull
+          parentId: null,
+          _count: { pages: uncategorizedCount }, // ここにセット
         };
 
-        // 配列の先頭に結合
         setFolders([uncategorizedFolder, ...fetchedFolders]);
       }
+      if (tagsRes.ok) setAllTags(await tagsRes.json());
     } catch (error) {
       console.error('データの取得に失敗しました', error);
     } finally {
@@ -165,15 +219,27 @@ export default function PagesList() {
   };
 
   // ドラッグ＆ドロップ時の移動処理（Undo機能付き）
-  const handleDropBookmark = async (bookmarkId: string, folderId: string, folderName: string) => {
+  // 単一ID(string) または 複数ID(string[]) を受け取れるようにする
+  const handleDropBookmark = async (
+    bookmarkIdOrIds: string | string[],
+    folderId: string,
+    folderName: string
+  ) => {
+    // 配列（複数選択DnD）の場合
+    if (Array.isArray(bookmarkIdOrIds)) {
+      await executeBulkMove(bookmarkIdOrIds, folderId);
+      return;
+    }
+
+    // 単一（通常DnD）の場合
+    const bookmarkId = bookmarkIdOrIds;
     const res = await fetch(`/api/pages/${bookmarkId}/folders`, {
       method: 'POST',
       body: JSON.stringify({ folderId }),
     });
 
     if (res.ok) {
-      fetchData(); // リスト更新
-
+      fetchData();
       toast(`「${folderName}」に追加しました`, {
         action: {
           label: '元に戻す',
@@ -214,47 +280,54 @@ export default function PagesList() {
     <div className='container mx-auto px-4 py-8'>
       {/* ヘッダーエリア */}
       <div className='mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center'>
-        <div className='group flex items-center gap-2'>
-          {isEditingTitle ? (
-            // 編集モード
-            <div className='flex items-center gap-2'>
-              <Input
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className='h-10 w-64 text-2xl font-bold'
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleRenameFolder();
-                  if (e.key === 'Escape') setIsEditingTitle(false);
-                }}
-              />
-              <Button size='icon' variant='ghost' onClick={handleRenameFolder}>
-                <Check className='h-5 w-5 text-green-600' />
-              </Button>
-              <Button size='icon' variant='ghost' onClick={() => setIsEditingTitle(false)}>
-                <X className='h-5 w-5 text-red-600' />
-              </Button>
-            </div>
-          ) : (
-            // 通常表示モード
-            <>
-              <h1 className='text-3xl font-bold'>{displayTitle}</h1>
-
-              {/* 「未分類」でも「すべて」でもない場合のみ編集アイコンを出す */}
-              {currentFolderId && currentFolderId !== 'uncategorized' && (
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  className='opacity-0 transition-opacity group-hover:opacity-100'
-                  onClick={() => {
-                    setEditValue(displayTitle);
-                    setIsEditingTitle(true);
+        <div className='flex flex-col gap-1'>
+          <div className='group flex items-center gap-2'>
+            {isEditingTitle ? (
+              // 編集モード
+              <div className='flex items-center gap-2'>
+                <Input
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  className='h-10 w-64 text-2xl font-bold'
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleRenameFolder();
+                    if (e.key === 'Escape') setIsEditingTitle(false);
                   }}
-                >
-                  <Pencil className='h-5 w-5 text-gray-400' />
+                />
+                <Button size='icon' variant='ghost' onClick={handleRenameFolder}>
+                  <Check className='h-5 w-5 text-green-600' />
                 </Button>
-              )}
-            </>
+                <Button size='icon' variant='ghost' onClick={() => setIsEditingTitle(false)}>
+                  <X className='h-5 w-5 text-red-600' />
+                </Button>
+              </div>
+            ) : (
+              // 通常表示モード
+              <>
+                <h1 className='text-3xl font-bold'>{displayTitle}</h1>
+
+                {/* 「未分類」でも「すべて」でもない場合のみ編集アイコンを出す */}
+                {currentFolderId && currentFolderId !== 'uncategorized' && (
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    className='opacity-0 transition-opacity group-hover:opacity-100'
+                    onClick={() => {
+                      setEditValue(displayTitle);
+                      setIsEditingTitle(true);
+                    }}
+                  >
+                    <Pencil className='h-5 w-5 text-gray-400' />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+          {displayTitle !== 'すべて' && !isEditingTitle && (
+            <span className='text-sm text-muted-foreground'>
+              全{currentFolder?._count?.pages || 0}件
+            </span>
           )}
         </div>
       </div>
@@ -306,106 +379,126 @@ export default function PagesList() {
       ) : (
         /* カードグリッド */
         <div className='grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3'>
-          {bookmarks.map((bookmark) => (
-            <Card
-              key={bookmark.id}
-              draggable={!isSelectMode} // 選択モード中はドラッグ不可にする
-              onDragStart={(e) => {
-                e.dataTransfer.setData('bookmarkId', bookmark.id);
-                e.dataTransfer.effectAllowed = 'move';
-                // ドラッグ中の見た目を少し薄くする
-                e.currentTarget.style.opacity = '0.5';
-              }}
-              onDragEnd={(e) => {
-                e.currentTarget.style.opacity = '1';
-              }}
-              className={`group relative transition-all ${
-                selectedIds.includes(bookmark.id) ? 'bg-blue-50/30 ring-2 ring-blue-500' : ''
-              }`}
-              onClick={() =>
-                isSelectMode ? toggleSelect(bookmark.id) : router.push(`/pages/${bookmark.id}`)
-              }
-            >
-              {/* チェックボックス (選択モード時のみ) */}
-              {isSelectMode && (
-                <div className='absolute left-3 top-3 z-20'>
-                  <Checkbox
-                    checked={selectedIds.includes(bookmark.id)}
-                    onCheckedChange={() => toggleSelect(bookmark.id)}
-                  />
-                </div>
-              )}
-              <CardHeader className='relative flex flex-row items-center gap-4 pb-2'>
-                {/* アイコン (Google Favicon API使用) */}
-                <Avatar className='h-10 w-10 border bg-gray-50'>
-                  <AvatarImage src={getFaviconUrl(bookmark.url)} alt={bookmark.title} />
-                  <AvatarFallback>{bookmark.title.substring(0, 1)}</AvatarFallback>
-                </Avatar>
+          {bookmarks.map((bookmark) => {
+            const isSelected = selectedIds.includes(bookmark.id);
 
-                <div className='flex-1 overflow-hidden pr-16'>
-                  <CardTitle className='truncate text-base' title={bookmark.title}>
-                    {bookmark.title}
-                  </CardTitle>
-                  <p className='truncate text-xs text-muted-foreground'>{bookmark.url}</p>
-                </div>
-                <div
-                  className='absolute right-2 top-2 z-10 flex items-center gap-1'
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* 外部リンクアイコン */}
-                  <a
-                    href={bookmark.url}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='block rounded-full border bg-white p-2 shadow-sm hover:bg-gray-100'
-                    title='サイトを開く'
+            return (
+              <Card
+                key={bookmark.id}
+                draggable={!isSelectMode || isSelected} // 選択モード中でも、自分が選択されていればドラッグ可能にする
+                onDragStart={(e) => {
+                  // 選択モード かつ このカードが選択済みの場合 -> 一括移動データ
+                  if (isSelectMode && isSelected) {
+                    e.dataTransfer.setData('bulkBookmarkIds', JSON.stringify(selectedIds));
+                    e.dataTransfer.effectAllowed = 'move';
+
+                    // 見た目の調整: 複数枚重なっているように見えるアイコン等をセットできればベストだが、
+                    // ここでは簡易的に現在の要素をドラッグイメージとする
+                  } else {
+                    // 単一移動データ (通常モード または 選択モードだが未選択のものをドラッグした場合)
+                    e.dataTransfer.setData('bookmarkId', bookmark.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }
+                  e.currentTarget.style.opacity = '0.5';
+                }}
+                onDragEnd={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+                className={`group relative transition-all ${
+                  isSelected ? 'bg-blue-50/30 ring-2 ring-blue-500' : ''
+                }`}
+                onClick={() =>
+                  isSelectMode ? toggleSelect(bookmark.id) : router.push(`/pages/${bookmark.id}`)
+                }
+              >
+                {/* チェックボックス (選択モード時のみ) */}
+                {isSelectMode && (
+                  <div className='absolute left-3 top-3 z-20'>
+                    <Checkbox
+                      checked={selectedIds.includes(bookmark.id)}
+                      onCheckedChange={() => toggleSelect(bookmark.id)}
+                    />
+                  </div>
+                )}
+                <CardHeader className='relative flex flex-row items-center gap-4 pb-2'>
+                  {/* アイコン (Google Favicon API使用) */}
+                  <Avatar className='h-10 w-10 border bg-gray-50'>
+                    <AvatarImage src={getFaviconUrl(bookmark.url)} alt={bookmark.title} />
+                    <AvatarFallback>{bookmark.title.substring(0, 1)}</AvatarFallback>
+                  </Avatar>
+
+                  <div className='flex-1 overflow-hidden pr-16'>
+                    <CardTitle className='truncate text-base' title={bookmark.title}>
+                      {bookmark.title}
+                    </CardTitle>
+                    <p className='truncate text-xs text-muted-foreground'>{bookmark.url}</p>
+                  </div>
+                  <div
+                    className='absolute right-2 top-2 z-10 flex items-center gap-1'
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <ExternalLink className='h-4 w-4 text-gray-500' />
-                  </a>
-                  {/* アクションメニュー */}
-                  <BookmarkActions
-                    bookmarkId={bookmark.id}
-                    currentFolderIds={bookmark.folders.map((f) => f.id)}
-                    allFolders={folders} // 親で保持している全フォルダリスト
-                    onRefresh={fetchData}
-                  />
-                </div>
-              </CardHeader>
+                    {/* 外部リンクアイコン */}
+                    <a
+                      href={bookmark.url}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='block rounded-full border bg-white p-2 shadow-sm hover:bg-gray-100'
+                      title='サイトを開く'
+                    >
+                      <ExternalLink className='h-4 w-4 text-gray-500' />
+                    </a>
+                    {/* アクションメニュー */}
+                    <BookmarkActions
+                      bookmarkId={bookmark.id}
+                      currentFolderIds={bookmark.folders.map((f) => f.id)}
+                      allFolders={folders} // 親で保持している全フォルダリスト
+                      onRefresh={fetchData}
+                      activeFolderId={currentFolderId}
+                    />
+                  </div>
+                </CardHeader>
 
-              <CardContent>
-                {/* タグリスト */}
-                <div className='mt-2 flex flex-wrap gap-2'>
-                  {bookmark.tags.length > 0 ? (
-                    bookmark.tags.map((tag) => (
-                      <Badge
-                        key={tag.id}
-                        variant='secondary'
-                        className='cursor-pointer transition-colors hover:bg-primary hover:text-white'
-                        onClick={(e) => handleTagClick(e, tag.name)}
-                      >
-                        {tag.name}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className='text-xs text-gray-400'>タグなし</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                <CardContent>
+                  {/* タグリスト */}
+                  <div className='mt-2 flex flex-wrap gap-2'>
+                    {bookmark.tags.length > 0 ? (
+                      bookmark.tags.map((tag) => (
+                        <Badge
+                          key={tag.id}
+                          variant='secondary'
+                          className='cursor-pointer transition-colors hover:bg-primary hover:text-white'
+                          onClick={(e) => handleTagClick(e, tag.name)}
+                        >
+                          {tag.name}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className='text-xs text-gray-400'>タグなし</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
       {/* 一括操作バー */}
-      <BulkActionBar
-        selectedCount={selectedIds.length}
-        allFolders={folders}
-        onMove={handleBulkMove}
-        onDelete={handleBulkDelete}
-        onCancel={() => {
-          setIsSelectMode(false);
-          setSelectedIds([]);
-        }}
-      />
+      {isSelectMode && (
+        <BulkActionBar
+          selectedCount={selectedIds.length}
+          allFolders={folders}
+          allTags={allTags}
+          onMove={handleBulkMoveButton}
+          onDelete={handleBulkDelete}
+          onTag={handleBulkTag}
+          onRemoveFromFolder={handleBulkRemoveFromFolder}
+          onCancel={() => {
+            setIsSelectMode(false);
+            setSelectedIds([]);
+          }}
+          activeFolderId={currentFolderId}
+        />
+      )}
       <Button
         onClick={() => router.push('/addPage')} // 登録画面のパスを指定
         className='fixed bottom-8 right-8 z-50 h-14 w-14 rounded-full shadow-xl transition-transform hover:scale-105'

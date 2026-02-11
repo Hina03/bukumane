@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'; // shadcn/uiのButtonを使用
 export const Header = () => {
   const { data: session, status } = useSession();
   const loading = status === 'loading';
+  const userName = session?.user?.name || session?.user?.email;
 
   return (
     <header className='border-b bg-white'>
@@ -24,6 +25,7 @@ export const Header = () => {
             {session ? (
               // ログイン時の表示
               <>
+                <p className='text-sm font-medium leading-none'>{userName} でログイン中</p>
                 <Button variant='ghost' asChild>
                   <Link href='/pages'>Pages</Link>
                 </Button>

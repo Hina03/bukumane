@@ -3,18 +3,24 @@ import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
+
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { name } = await req.json();
-    if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    }
 
     const updatedFolder = await prisma.folder.update({
       where: {
-        id: params.id,
-        userId: session.user.id, // 自分のフォルダのみ
+        id,
+        userId: session.user.id,
       },
       data: { name },
     });
@@ -25,34 +31,59 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id: folderId } = await params;
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: '認証されていません' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const folderId = params.id;
-
-    // 他人のフォルダを消せないように userId をチェック
     const folder = await prisma.folder.findUnique({
       where: { id: folderId },
+      select: { id: true, userId: true, parentId: true, name: true },
     });
 
     if (!folder || folder.userId !== session.user.id) {
-      return NextResponse.json({ error: '削除権限がありません' }, { status: 403 });
+      return NextResponse.json({ error: '権限がありません' }, { status: 403 });
     }
 
-    // 削除実行
-    // Prismaのスキーマで Cascade が設定されているため、
-    // PageOnFolder（中間テーブル）の紐付けも自動で消えます。
-    await prisma.folder.delete({
-      where: { id: folderId },
+    await prisma.$transaction(async (tx) => {
+      const parentId = folder.parentId;
+
+      await tx.folder.updateMany({
+        where: { parentId: folderId },
+        data: { parentId },
+      });
+
+      if (parentId) {
+        const pages = await tx.pageOnFolder.findMany({
+          where: { folderId },
+        });
+
+        if (pages.length > 0) {
+          await tx.pageOnFolder.createMany({
+            data: pages.map((p) => ({
+              pageId: p.pageId,
+              folderId: parentId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      await tx.folder.delete({
+        where: { id: folderId },
+      });
     });
 
-    return NextResponse.json({ message: '削除しました' });
+    return NextResponse.json({
+      message: 'フォルダを削除しました。中身を移動しました。',
+      deletedFolder: folder,
+    });
   } catch (error) {
-    console.error('Folder DELETE Error:', error);
+    console.error(error);
     return NextResponse.json({ error: '削除に失敗しました' }, { status: 500 });
   }
 }

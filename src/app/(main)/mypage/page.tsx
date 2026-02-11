@@ -7,10 +7,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Save, Pencil, Loader2, X } from 'lucide-react';
 import TagManager from '@/components/TagManager';
+import FolderManager from '@/components/FolderManager';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { useRouter } from 'next/navigation';
 
 // バリデーションスキーマ
@@ -154,9 +161,28 @@ export default function MyPage() {
                 )}
               </div>
             </form>
-            {/* タグ管理 */}
-            <div className='mt-4 w-full max-w-md border-t pt-6'>
-              <TagManager />
+            <div className='mt-4 w-full max-w-md border-t pt-2'>
+              <Accordion type='multiple' className='w-full'>
+                {/* フォルダ管理 */}
+                <AccordionItem value='folders' className='border-b-0'>
+                  <AccordionTrigger className='py-4 text-lg font-bold hover:no-underline'>
+                    フォルダ管理
+                  </AccordionTrigger>
+                  <AccordionContent className='pt-2'>
+                    <FolderManager />
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* タグ管理 */}
+                <AccordionItem value='tags' className='border-b-0'>
+                  <AccordionTrigger className='py-4 text-lg font-bold hover:no-underline'>
+                    タグ管理
+                  </AccordionTrigger>
+                  <AccordionContent className='pt-2'>
+                    <TagManager />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           </div>
         </CardContent>

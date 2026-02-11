@@ -1,5 +1,6 @@
 /** @type {import("prettier").Config} */
-module.exports = {
+
+const prettierConfig = {
   semi: true,
   singleQuote: true,
   jsxSingleQuote: true,
@@ -11,3 +12,5 @@ module.exports = {
   endOfLine: 'auto',
   plugins: ['prettier-plugin-tailwindcss'],
 };
+
+export default prettierConfig;

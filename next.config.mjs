@@ -1,12 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Docker環境でのホットリロード用設定
-  webpack: (config) => {
-    config.watchOptions = {
-      poll: 1000, // 1秒ごとに変更をチェック
+  turbopack: {
+    watchOptions: {
+      poll: 1000, // 1秒ごとに変更をチェック（Docker向け）
       aggregateTimeout: 300,
-    };
-    return config;
+    },
   },
 };
 

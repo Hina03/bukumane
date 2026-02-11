@@ -1,6 +1,6 @@
 'use client';
 
-import { MoreVertical, FolderPlus, Check, Folder, Trash2 } from 'lucide-react';
+import { MoreVertical, FolderPlus, Check, Folder, Trash2, FolderMinus } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,7 @@ type Props = {
   currentFolderIds: string[];
   allFolders: { id: string; name: string }[];
   onRefresh: () => void;
+  activeFolderId?: string | null;
 };
 
 export default function BookmarkActions({
@@ -27,9 +28,11 @@ export default function BookmarkActions({
   currentFolderIds,
   allFolders,
   onRefresh,
+  activeFolderId,
 }: Props) {
-  const handleDelete = async () => {
-    if (!confirm('このブックマークを削除しますか？')) return;
+  // ブックマークを完全に削除する関数
+  const handleDeletePermanently = async () => {
+    if (!confirm('このブックマークを完全に削除しますか？')) return;
 
     try {
       const res = await fetch(`/api/pages/${bookmarkId}`, {
@@ -46,6 +49,21 @@ export default function BookmarkActions({
       toast.error('エラーが発生しました');
     }
   };
+
+  // フォルダから外す関数
+  const removeFromCurrentFolder = async () => {
+    if (!activeFolderId) return;
+    const res = await fetch(`/api/pages/${bookmarkId}/folders?folderId=${activeFolderId}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) {
+      toast.success('フォルダから削除しました');
+      onRefresh();
+    }
+  };
+
+  // 「すべて」でも「未分類」でもない通常のフォルダ内かどうか
+  const isNormalFolder = activeFolderId && activeFolderId !== 'uncategorized';
 
   const toggleFolder = async (folderId: string, isInFolder: boolean) => {
     const method = isInFolder ? 'DELETE' : 'POST';
@@ -81,35 +99,46 @@ export default function BookmarkActions({
             <span>フォルダに追加/解除</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className='max-h-60 overflow-y-auto'>
-            {allFolders.map((folder) => {
-              const isSelected = currentFolderIds.includes(folder.id);
-              return (
-                <DropdownMenuItem
-                  key={folder.id}
-                  onClick={() => toggleFolder(folder.id, isSelected)}
-                >
-                  <div className='flex w-full items-center justify-between'>
-                    <span className='flex items-center gap-2'>
-                      <Folder className='h-3 w-3 text-blue-500' />
-                      {folder.name}
-                    </span>
-                    {isSelected && <Check className='h-4 w-4 text-green-500' />}
-                  </div>
-                </DropdownMenuItem>
-              );
-            })}
-            {allFolders.length === 0 && (
+            {allFolders
+              .filter((folder) => folder.id !== 'uncategorized')
+              .map((folder) => {
+                const isSelected = currentFolderIds.includes(folder.id);
+                return (
+                  <DropdownMenuItem
+                    key={folder.id}
+                    onClick={() => toggleFolder(folder.id, isSelected)}
+                  >
+                    <div className='flex w-full items-center justify-between'>
+                      <span className='flex items-center gap-2'>
+                        <Folder className='h-3 w-3 text-blue-500' />
+                        {folder.name}
+                      </span>
+                      {isSelected && <Check className='h-4 w-4 text-green-500' />}
+                    </div>
+                  </DropdownMenuItem>
+                );
+              })}
+            {allFolders.filter((f) => f.id !== 'uncategorized').length === 0 && (
               <div className='p-2 text-xs text-muted-foreground'>フォルダがありません</div>
             )}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 
+        <DropdownMenuSeparator />
+
+        {isNormalFolder && (
+          <DropdownMenuItem onClick={removeFromCurrentFolder}>
+            <FolderMinus className='mr-2 h-4 w-4 text-orange-600' />
+            <span className='text-orange-600'>このフォルダから削除</span>
+          </DropdownMenuItem>
+        )}
+
         <DropdownMenuItem
           className='text-red-600 focus:bg-red-50 focus:text-red-600'
-          onClick={handleDelete}
+          onClick={handleDeletePermanently}
         >
           <Trash2 className='mr-2 h-4 w-4' />
-          <span>ブックマークを削除</span>
+          <span>ブックマークを完全に削除</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

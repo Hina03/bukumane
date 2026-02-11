@@ -24,11 +24,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 
 type Folder = {
   id: string;
   name: string;
   parentId: string | null;
+  _count?: { pages: number };
 };
 
 interface FolderGridProps {
@@ -36,7 +38,7 @@ interface FolderGridProps {
   currentFolderId: string | null;
   onFolderClick: (id: string) => void;
   onFolderCreated: () => void;
-  onDropBookmark: (bookmarkId: string, folderId: string, folderName: string) => void;
+  onDropBookmark: (bookmarkId: string | string[], folderId: string, folderName: string) => void;
 }
 
 export default function FolderGrid({
@@ -47,8 +49,6 @@ export default function FolderGrid({
   onDropBookmark,
 }: FolderGridProps) {
   const [newFolderName, setNewFolderName] = useState('');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // 現在の階層にあるフォルダのみをフィルタリング
@@ -69,22 +69,22 @@ export default function FolderGrid({
     }
   };
 
-  const handleDeleteFolder = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // フォルダ移動イベントが発火するのを防ぐ
-    setIsDeleting(true);
-
+  const handleDeleteFolder = async (folder: Folder) => {
     try {
-      const res = await fetch(`/api/folders/${id}`, {
+      const res = await fetch(`/api/folders/${folder.id}`, {
         method: 'DELETE',
       });
 
       if (res.ok) {
-        onFolderCreated(); // データの再取得
+        onFolderCreated(); // 再読み込み
+
+        // Sonnerで通知を出す
+        toast(`フォルダ「${folder.name}」を削除しました`, {
+          description: '中身は一つ上の階層へ移動しました。',
+        });
       }
-    } catch (error) {
-      console.error('削除失敗', error);
-    } finally {
-      setIsDeleting(false);
+    } catch {
+      toast.error('削除に失敗しました');
     }
   };
 
@@ -120,6 +120,7 @@ export default function FolderGrid({
       <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6'>
         {displayedFolders.map((folder) => {
           const isUncategorized = folder.id === 'uncategorized';
+          const count = folder._count?.pages || 0; // 件数取得
 
           return (
             <Card
@@ -141,6 +142,21 @@ export default function FolderGrid({
                   : (e) => {
                       e.preventDefault();
                       e.currentTarget.classList.remove('bg-blue-100', 'border-blue-500');
+
+                      // ★ バルクデータの取得を優先
+                      const bulkData = e.dataTransfer.getData('bulkBookmarkIds');
+                      if (bulkData) {
+                        try {
+                          const ids = JSON.parse(bulkData);
+                          if (Array.isArray(ids)) {
+                            onDropBookmark(ids, folder.id, folder.name);
+                            return; // バルク処理が終われば終了
+                          }
+                        } catch (err) {
+                          console.error('Failed to parse bulk data:', err);
+                        }
+                      }
+
                       const bookmarkId = e.dataTransfer.getData('bookmarkId');
                       if (bookmarkId) {
                         onDropBookmark(bookmarkId, folder.id, folder.name);
@@ -165,6 +181,13 @@ export default function FolderGrid({
                 {folder.name}
               </span>
 
+              {/* 件数表示 (右端に配置) */}
+              <span
+                className={`ml-auto text-xs text-slate-400 ${!isUncategorized ? 'mr-5 group-hover:hidden' : ''}`}
+              >
+                {count}
+              </span>
+
               {/* 削除ボタン（ホバー時のみ表示） */}
               {!isUncategorized && (
                 <AlertDialog>
@@ -184,9 +207,9 @@ export default function FolderGrid({
                       </AlertDialogTitle>
                       <AlertDialogDescription>
                         「{folder.name}
-                        」を削除します。このフォルダ内のサブフォルダもすべて削除されます。
+                        」を削除します。このフォルダ内のサブフォルダは親フォルダに移動します。
                         <br />
-                        ※中のブックマーク自体は削除されず、「未分類」となります。
+                        ※中のブックマーク自体は削除されません。
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -196,7 +219,7 @@ export default function FolderGrid({
                       <AlertDialogAction
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteFolder(e, folder.id);
+                          handleDeleteFolder(folder);
                         }}
                         className='bg-red-500 hover:bg-red-600'
                       >

@@ -15,25 +15,38 @@ export async function GET() {
       return NextResponse.json({ error: '認証されていません' }, { status: 401 });
     }
 
-    // 2. ユーザーのフォルダを全件取得
-    // ※ フロントエンドでツリー構造を作るため、親ID(parentId)も含めてフラットに取得します
-    const folders = await prisma.folder.findMany({
-      where: {
-        userId: session.user.id,
-      },
-      orderBy: {
-        createdAt: 'desc', // 作成順（または name: 'asc' で名前順）
-      },
-      select: {
-        id: true,
-        name: true,
-        parentId: true,
-        createdAt: true,
-        // 必要であれば子の数などもカウントできますが、まずはシンプルに
-      },
-    });
+    // フォルダ一覧と未分類のカウントを並行して取得
+    const [folders, uncategorizedCount] = await prisma.$transaction([
+      // 1. 通常フォルダ一覧（各フォルダ内のページ数もカウント）
+      prisma.folder.findMany({
+        where: {
+          userId: session.user.id,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: {
+          id: true,
+          name: true,
+          parentId: true,
+          createdAt: true,
+          _count: {
+            select: { pages: true },
+          },
+        },
+      }),
+      // 2. 未分類（フォルダに属さない）ブックマークのカウント
+      prisma.page.count({
+        where: {
+          userId: session.user.id,
+          folders: {
+            none: {}, // フォルダとの関連がないものをカウント
+          },
+        },
+      }),
+    ]);
 
-    return NextResponse.json(folders);
+    return NextResponse.json({ folders, uncategorizedCount });
   } catch (error) {
     console.error('Folders GET Error:', error);
     return NextResponse.json({ error: 'フォルダの取得に失敗しました' }, { status: 500 });
