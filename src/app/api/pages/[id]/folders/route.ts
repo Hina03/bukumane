@@ -3,15 +3,17 @@ import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id: pageId } = await params;
+
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { folderId } = await req.json();
-    const pageId = params.id;
 
-    // 中間テーブルにレコードを作成（既にある場合は何もしない）
     await prisma.pageOnFolder.upsert({
       where: {
         pageId_folderId: { pageId, folderId },
@@ -26,16 +28,21 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id: pageId } = await params;
+
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const folderId = searchParams.get('folderId');
-    const pageId = params.id;
 
-    if (!folderId) return NextResponse.json({ error: 'folderId required' }, { status: 400 });
+    if (!folderId) {
+      return NextResponse.json({ error: 'folderId required' }, { status: 400 });
+    }
 
     await prisma.pageOnFolder.delete({
       where: {
