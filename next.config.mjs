@@ -35,13 +35,6 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
-
-  turbopack: {
-    watchOptions: {
-      poll: 1000,
-      aggregateTimeout: 300,
-    },
-  },
   async headers() {
     return [
       {
