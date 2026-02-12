@@ -1,11 +1,11 @@
 // src/proxy.ts
 import { withAuth } from 'next-auth/middleware';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 export default withAuth(
-  function proxy(req: NextRequest) {
+  function proxy() {
     // 認証OK時はそのまま通す
-    return;
+    return NextResponse.next();
   },
   {
     callbacks: {
