@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, ExternalLink, Plus, Pencil, Check, X } from 'lucide-react';
+import { Loader2, ExternalLink, Plus, Pencil, Check, X, CheckCircle2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 
@@ -414,10 +413,11 @@ export default function PagesList() {
                 {/* チェックボックス (選択モード時のみ) */}
                 {isSelectMode && (
                   <div className='absolute left-3 top-3 z-20'>
-                    <Checkbox
-                      checked={selectedIds.includes(bookmark.id)}
-                      onCheckedChange={() => toggleSelect(bookmark.id)}
-                    />
+                    {isSelected ? (
+                      // 選択中：青いチェックアイコンを表示
+                      <CheckCircle2 className='h-6 w-6 fill-blue-500 text-white' />
+                    ) : // 未選択：何も表示しない（または、うっすら円形のアウトラインだけ出す場合はここに配置）
+                    null}
                   </div>
                 )}
                 <CardHeader className='relative flex flex-row items-center gap-4 pb-2'>

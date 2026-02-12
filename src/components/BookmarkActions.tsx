@@ -1,6 +1,7 @@
 'use client';
 
-import { MoreVertical, FolderPlus, Check, Folder, Trash2, FolderMinus } from 'lucide-react';
+import { MoreVertical, FolderPlus, Check, Folder, Trash2, FolderMinus, Pencil } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +31,7 @@ export default function BookmarkActions({
   onRefresh,
   activeFolderId,
 }: Props) {
+  const router = useRouter(); // routerの初期化
   // ブックマークを完全に削除する関数
   const handleDeletePermanently = async () => {
     if (!confirm('このブックマークを完全に削除しますか？')) return;
@@ -91,6 +93,13 @@ export default function BookmarkActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align='end' className='w-56'>
         <DropdownMenuLabel>操作</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+
+        {/* ★ 編集アクションを追加 */}
+        <DropdownMenuItem onClick={() => router.push(`/pages/${bookmarkId}?edit=true`)}>
+          <Pencil className='mr-2 h-4 w-4' />
+          <span>編集</span>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
 
         <DropdownMenuSub>

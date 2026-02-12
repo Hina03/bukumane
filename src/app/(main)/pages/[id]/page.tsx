@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -43,12 +43,14 @@ type PageData = {
 
 export default function PageDetail() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const id = params.id as string;
+  const isEditModeParam = searchParams.get('edit') === 'true';
 
   const [page, setPage] = useState<PageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(isEditModeParam);
 
   // タグ編集用ステート
   const [availableTags, setAvailableTags] = useState<string[]>([]);

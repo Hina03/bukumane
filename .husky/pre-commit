@@ -1,6 +1,3 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-
 # bash echo color
 RED='\033[1;31m'
 GREEN='\033[1;32m'
