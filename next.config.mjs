@@ -34,6 +34,8 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  reactStrictMode: true,
+
   turbopack: {
     watchOptions: {
       poll: 1000,

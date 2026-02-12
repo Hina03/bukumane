@@ -12,13 +12,14 @@ services:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       NODE_ENV: development
       WATCHPACK_POLLING: true
+      CHOKIDAR_USEPOLLING: true
     depends_on:
       - db
     volumes:
       - .:/app
       - /app/node_modules
       - /app/.next
-    # command: npm run dev
+    command: npx next dev --webpack
 
   db:
     container_name: bukumane-db
